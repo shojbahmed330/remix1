@@ -35,10 +35,10 @@ export class Validator {
     for (const [path, content] of Object.entries(files)) {
       const imports = this.extractImports(content);
       for (const imp of imports) {
-        if (imp.startsWith('.')) {
+        if (imp.startsWith('.') || imp.startsWith('@/')) {
           const resolved = this.resolveImportPath(path, imp, files);
           if (!resolved) {
-            errors.push(`Missing import target: "${imp}" in file "${path}". You MUST create this missing file in your response.`);
+            errors.push(`🚨 CRITICAL ERROR: Missing import target "${imp}" in file "${path}". You referenced this file but did not provide its content. You MUST include the full content for "${imp}" in your response.`);
           }
         }
       }

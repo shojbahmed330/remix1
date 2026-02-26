@@ -349,8 +349,15 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
         runUnitTests();
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') console.log("Generation aborted");
-      else addToast(err.message, 'error');
+      console.error("CRITICAL_SEND_ERROR:", err);
+      if (err.name === 'AbortError') {
+        console.log("Generation aborted");
+      } else {
+        addToast(err.message || "An unexpected error occurred", 'error');
+      }
+      // Force reset states on error
+      setIsGenerating(false);
+      setCurrentAction(null);
     } finally {
       setIsGenerating(false);
       setCurrentAction(null);
