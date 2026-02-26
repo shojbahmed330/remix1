@@ -63,9 +63,6 @@ export class DiffEngine {
     }
   }
 
-  private normalize(content: string): string {
-    return content.replace(/\r\n/g, '\n');
-  }
 
   public enforcePatchRules(generatedFiles: Record<string, string>, currentFiles: Record<string, string>, exemptedFiles: Set<string>): string[] {
     // Disabled: We now prefer full files for reliability
@@ -105,7 +102,7 @@ export class DiffEngine {
            if (lines[0].startsWith('--- ')) {
              // Strip the header and treat as full file
              trimmed = lines.slice(1).join('\n').trim();
-             newContent = trimmed;
+             newContent = trimmed; // This was the const reassignment issue
            }
         }
 
