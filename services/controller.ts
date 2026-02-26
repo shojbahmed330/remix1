@@ -146,7 +146,7 @@ export class AIController {
         };
 
         const isPatchMode = false; // Disabled: Always use full files for reliability
-        let patchInstruction = "\nFULL FILE MODE:\nAlways return the COMPLETE file content for any file you create or modify.\nDO NOT use patches, diffs, or partial snippets.\n";
+        let patchInstruction = "\nFULL FILE MODE:\nAlways return the COMPLETE file content for any file you create or modify.\nDO NOT use patches, diffs, or partial snippets.\nDO NOT start the file with '--- filename' or any diff headers. Just return the raw code.\n";
 
         const impactedFiles = this.orchestrator.analyzeImpact(currentPrompt, this.dependencyGraph);
         const impactInstruction = impactedFiles.length > 0
@@ -257,7 +257,7 @@ export class AIController {
             changedFilesToValidate[path] = content;
           }
         }
-        const validationErrors = this.validator.validateOutput(changedFilesToValidate, this.dependencyGraph);
+        const validationErrors = this.validator.validateOutput(changedFilesToValidate, mergedFiles, this.dependencyGraph);
         validationErrors.push(...applyErrors);
         
         if (impactedFiles.length > 0) {
@@ -270,10 +270,28 @@ export class AIController {
         }
 
         if (validationErrors.length > 0) {
-          yield { type: 'status', phase: 'FIXING', message: `Fixing ${validationErrors.length} errors...` };
+          yield { type: 'status', phase: 'FIXING', message: `Fixing ${validationErrors.length} errors (Attempt ${attempts + 1})...` };
           yield { type: 'validation_errors', errors: validationErrors };
           Logger.warn(`Validation failed (Attempt ${attempts + 1})`, { ...logContext, validationErrors });
-          errorContext = `\n\n🚨 VALIDATION FAILED (Attempt ${attempts + 1}):\n${validationErrors.join('\n')}\n\nPlease fix these errors in your next response.`;
+          
+          // Intelligent Retry Strategy
+          let strategyInstruction = "";
+          if (attempts >= 2) {
+             strategyInstruction = "\n\nSTRATEGY CHANGE: You are failing repeatedly. SIMPLIFY the implementation. Remove complex types or advanced features if they are causing errors. Focus on basic functionality.";
+          }
+          if (attempts >= 4) {
+             strategyInstruction = "\n\nEMERGENCY MODE: Just output the simplest possible working code. Ignore best practices if necessary to pass validation.";
+          }
+
+          // Error Categorization
+          const errorSummary = validationErrors.map(e => {
+            if (e.includes('Missing import')) return "MISSING FILE: Create the file you are importing.";
+            if (e.includes('Syntax Error')) return "SYNTAX ERROR: Fix TypeScript syntax.";
+            if (e.includes('JSON')) return "JSON ERROR: Fix JSON format.";
+            return e;
+          }).join('\n');
+
+          errorContext = `\n\n🚨 VALIDATION FAILED (Attempt ${attempts + 1}):\n${errorSummary}\n${strategyInstruction}\n\nPlease fix these errors in your next response.`;
           attempts++;
           continue;
         }

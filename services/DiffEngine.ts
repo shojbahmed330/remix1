@@ -39,6 +39,23 @@ export class DiffEngine {
     return false;
   }
 
+  private normalize(content: string): string {
+    // Standardize line endings
+    let normalized = content.replace(/\r\n/g, '\n');
+    
+    // Auto-fix: Vite Web Worker Syntax
+    // new Worker('./worker.js') -> new Worker(new URL('./worker.js', import.meta.url))
+    normalized = normalized.replace(
+      /new\s+Worker\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      (match, path) => {
+        if (path.includes('import.meta.url')) return match; // Already fixed
+        return `new Worker(new URL('${path}', import.meta.url))`;
+      }
+    );
+
+    return normalized.trim();
+  }
+
   public updateSnapshot(files: Record<string, string>, fileHashes: Map<string, string>) {
     fileHashes.clear();
     for (const [path, content] of Object.entries(files)) {
@@ -77,8 +94,20 @@ export class DiffEngine {
       // If file exists, try to apply patch
       try {
         const baseContent = this.normalize(base[path]);
-        const trimmed = newContent.trim();
-        const isUnifiedDiff = trimmed.startsWith('--- ') || trimmed.includes('@@ ');
+        let trimmed = newContent.trim();
+        let isUnifiedDiff = trimmed.startsWith('--- ') || trimmed.includes('@@ ');
+
+        // Handle false positive: File starts with "--- filename" but has no hunks (@@)
+        // This happens when AI returns full file but adds a header.
+        if (isUnifiedDiff && !trimmed.includes('@@ ')) {
+           isUnifiedDiff = false;
+           const lines = trimmed.split('\n');
+           if (lines[0].startsWith('--- ')) {
+             // Strip the header and treat as full file
+             trimmed = lines.slice(1).join('\n').trim();
+             newContent = trimmed;
+           }
+        }
 
         if (isUnifiedDiff) {
           // Clean up the patch content

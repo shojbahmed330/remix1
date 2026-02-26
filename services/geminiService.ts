@@ -180,9 +180,18 @@ export class GeminiService implements AIProvider {
         const response = await ai.models.generateContent({
           model,
           contents: [{ parts: [{ text: input }] }],
-          config: { systemInstruction, responseMimeType: "application/json", temperature: 0.1 }
+          config: { 
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            responseMimeType: "application/json", 
+            temperature: 0.1 
+          }
         });
-        return JSON.parse(response.text || '{}');
+        
+        let text = response.text || '{}';
+        // Sanitize markdown code blocks if present (even with JSON mode, some models add it)
+        text = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
+        
+        return JSON.parse(text);
       } catch (error: any) {
         Logger.warn(`Attempt ${attempt} failed`, { component: 'GeminiService', model, attempt }, error);
         lastError = error;

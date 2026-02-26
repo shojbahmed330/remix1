@@ -78,7 +78,16 @@ export class Orchestrator {
     dependencyGraph: DependencyNode[],
     activeWorkspace?: any
   ): string {
-    return `PHASE: ${phase.toUpperCase()}\nUSER REQUEST: ${prompt}\n\nCONTEXT:\n${this.buildContext(files, dependencyGraph, prompt)}`;
+    // Detect simple tools to prevent over-engineering
+    const simpleTools = ['calculator', 'timer', 'stopwatch', 'todo', 'to-do', 'counter', 'weather', 'clock', 'converter', 'generator'];
+    const isSimpleTool = simpleTools.some(tool => prompt.toLowerCase().includes(tool));
+    
+    let architectureInstruction = "";
+    if (isSimpleTool && !prompt.toLowerCase().includes('database') && !prompt.toLowerCase().includes('backend')) {
+      architectureInstruction = "\n\nARCHITECTURAL CONSTRAINT: This is a SIMPLE CLIENT-SIDE TOOL. Do NOT create a database schema, backend API, or authentication system unless explicitly requested. Use React state and local storage only. Keep it simple and contained in minimal files.";
+    }
+
+    return `PHASE: ${phase.toUpperCase()}\nUSER REQUEST: ${prompt}${architectureInstruction}\n\nCONTEXT:\n${this.buildContext(files, dependencyGraph, prompt)}`;
   }
 
   public buildContext(files: Record<string, string>, dependencyGraph: DependencyNode[], prompt?: string): string {

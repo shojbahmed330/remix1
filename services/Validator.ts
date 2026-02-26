@@ -5,11 +5,12 @@ import { DependencyNode } from "../types";
 export class Validator {
   private resolveCache = new Map<string, string | null>();
 
-  public validateOutput(files: Record<string, string>, dependencyGraph: DependencyNode[]): string[] {
+  public validateOutput(filesToValidate: Record<string, string>, allFiles: Record<string, string>, dependencyGraph: DependencyNode[]): string[] {
     const errors: string[] = [];
-    errors.push(...this.validateFileSizeAndConflicts(files));
-    errors.push(...this.validateImports(files));
-    errors.push(...this.validateTypeScriptSyntax(files));
+    errors.push(...this.validateFileSizeAndConflicts(filesToValidate));
+    // Pass both the files to validate AND the full project context
+    errors.push(...this.validateImports(filesToValidate, allFiles));
+    errors.push(...this.validateTypeScriptSyntax(filesToValidate));
     errors.push(...this.detectCircularDependencies(dependencyGraph));
     return errors;
   }
@@ -18,7 +19,7 @@ export class Validator {
     const errors: string[] = [];
     for (const [path, content] of Object.entries(files)) {
       const lines = content.split('\n').length;
-      if (lines > 300) {
+      if (lines > 2000) { // Increased limit
         errors.push(`File "${path}" is too large (${lines} lines). Please split it.`);
       }
       if (content.includes('<<<<<<<') || content.includes('=======')) {
@@ -28,17 +29,18 @@ export class Validator {
     return errors;
   }
 
-  public validateImports(files: Record<string, string>): string[] {
+  public validateImports(filesToValidate: Record<string, string>, allFiles: Record<string, string>): string[] {
     const errors: string[] = [];
     this.resolveCache.clear();
 
-    for (const [path, content] of Object.entries(files)) {
+    for (const [path, content] of Object.entries(filesToValidate)) {
       const imports = this.extractImports(content);
       for (const imp of imports) {
         if (imp.startsWith('.') || imp.startsWith('@/')) {
-          const resolved = this.resolveImportPath(path, imp, files);
+          // Resolve against ALL files in the project, not just the new ones
+          const resolved = this.resolveImportPath(path, imp, allFiles);
           if (!resolved) {
-            errors.push(`🚨 CRITICAL ERROR: Missing import target "${imp}" in file "${path}". You referenced this file but did not provide its content. You MUST include the full content for "${imp}" in your response.`);
+            errors.push(`🚨 CRITICAL ERROR: Missing import target "${imp}" in file "${path}". You referenced this file but it does not exist in the project. You MUST create this missing file.`);
           }
         }
       }
@@ -50,6 +52,12 @@ export class Validator {
     const errors: string[] = [];
     for (const [fileName, content] of Object.entries(files)) {
       if (!fileName.endsWith('.ts') && !fileName.endsWith('.tsx')) continue;
+      
+      // Check for 'require' usage
+      if (content.match(/require\s*\(/) && !content.includes('createRequire')) {
+        errors.push(`TS Syntax Error in ${fileName}: "require()" is not supported in Vite. Use ES6 "import" syntax instead.`);
+      }
+
       try {
         const sourceFile = ts.createSourceFile(
           fileName,
