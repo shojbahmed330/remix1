@@ -196,6 +196,14 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       .replace(/<link[^>]+href=["'](?!\w+:\/\/)[^"']+["'][^>]*>/gi, '')
       .replace(/<script[^>]+src=["'](?!\w+:\/\/)[^"']+["'][^>]*><\/script>/gi, '');
 
+    // React previews are bootstrapped by this builder from transpiled object-URL modules.
+    // Inline module scripts inside srcdoc often import relative paths (./components/...),
+    // which resolve against about:srcdoc and can fail with non-hierarchical URL errors.
+    // Removing them avoids duplicate runtime entrypoints and prevents the srcdoc resolver crash.
+    if (hasReact) {
+      processedHtml = processedHtml.replace(/<script[^>]*type=["']module["'][^>]*>[\s\S]*?<\/script>/gi, '');
+    }
+
     if (!processedHtml.toLowerCase().includes('<html')) {
       return `<!DOCTYPE html><html lang="en"><head>${headInjection}</head><body>${processedHtml}${bootstrapScript}</body></html>`;
     }
