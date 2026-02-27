@@ -92,19 +92,29 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
         const url = URL.createObjectURL(blob);
         
         const cleanPath = path.replace(/\.(ts|tsx|js|jsx)$/, '');
-        const possiblePaths = [
-          cleanPath, path, `./${cleanPath}`, `./${path}`, `/${cleanPath}`, `/${path}`
-        ];
+        const aliasSet = new Set<string>();
+        const addAlias = (...candidates: Array<string | undefined>) => {
+          for (const candidate of candidates) {
+            if (!candidate) continue;
+            const normalized = candidate.trim();
+            if (!normalized) continue;
+            aliasSet.add(normalized);
+            aliasSet.add(normalized.toLowerCase());
+          }
+        };
+
+        addAlias(cleanPath, path, `./${cleanPath}`, `./${path}`, `/${cleanPath}`, `/${path}`);
 
         if (path.startsWith('app/')) {
           const appRelativeWithExt = path.replace('app/', './');
           const appRelative = appRelativeWithExt.replace(/\.(ts|tsx|js|jsx)$/, '');
-          possiblePaths.push(appRelativeWithExt, appRelative, appRelative.replace(/^\.\//, '/'));
+          addAlias(appRelativeWithExt, appRelative, appRelative.replace(/^\.\//, '/'));
         }
+
         if (path.startsWith('admin/')) {
           const adminRelativeWithExt = path.replace('admin/', './');
           const adminRelative = adminRelativeWithExt.replace(/\.(ts|tsx|js|jsx)$/, '');
-          possiblePaths.push(adminRelativeWithExt, adminRelative, adminRelative.replace(/^\.\//, '/'));
+          addAlias(adminRelativeWithExt, adminRelative, adminRelative.replace(/^\.\//, '/'));
         }
 
         // Also map common source-root prefixes to "./..." and "/..." imports.
@@ -114,29 +124,31 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
         for (const prefix of aliasPrefixes) {
           if (!cleanPath.startsWith(prefix)) continue;
           const withoutPrefix = cleanPath.slice(prefix.length);
+          const withoutPrefixWithExt = path.startsWith(prefix) ? path.slice(prefix.length) : '';
           if (!withoutPrefix) continue;
-          possiblePaths.push(`./${withoutPrefix}`, `/${withoutPrefix}`);
+          addAlias(`./${withoutPrefix}`, `/${withoutPrefix}`);
+          if (withoutPrefixWithExt) {
+            addAlias(`./${withoutPrefixWithExt}`, `/${withoutPrefixWithExt}`);
+          }
         }
 
         // If module is an index file, map its parent directory import too.
         // Example: app/components/Calculator/index.tsx -> /components/Calculator
         if (cleanPath.endsWith('/index')) {
           const parent = cleanPath.slice(0, -('/index'.length));
-          possiblePaths.push(parent, `./${parent}`, `/${parent}`);
+          addAlias(parent, `./${parent}`, `/${parent}`);
           if (parent.startsWith('app/')) {
             const appParent = parent.replace(/^app\//, '');
-            possiblePaths.push(`./${appParent}`, `/${appParent}`);
+            addAlias(`./${appParent}`, `/${appParent}`);
           }
           if (parent.startsWith('admin/')) {
             const adminParent = parent.replace(/^admin\//, '');
-            possiblePaths.push(`./${adminParent}`, `/${adminParent}`);
+            addAlias(`./${adminParent}`, `/${adminParent}`);
           }
         }
 
-
-
-        [...new Set(possiblePaths)].filter(Boolean).forEach(p => {
-          importMap[p!] = url;
+        aliasSet.forEach((alias) => {
+          importMap[alias] = url;
         });
       } catch (e) {
         console.error(`Failed to create Object URL for ${path}:`, e);
