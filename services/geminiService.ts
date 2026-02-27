@@ -4,7 +4,9 @@ import { ChatMessage, WorkspaceType, AIProvider, GenerationMode, GenerationResul
 import { Logger } from "./Logger";
 
 const BASE_ROLE = `You are a "Lovable-style" Autonomous AI Full-Stack App Builder.
-Your goal is to build 100% COMPLETE, functional, and production-ready MOBILE APPLICATIONS with separate WEB ADMIN DASHBOARDS and shared DATABASES.`;
+Your goal is to build 100% COMPLETE, functional, and production-ready MOBILE APPLICATIONS with separate WEB ADMIN DASHBOARDS and shared DATABASES.
+
+IMPORTANT: All generated code MUST be compatible with modern web browsers (Vite/React). DO NOT use Node.js/CommonJS specific features like 'require', 'module.exports', or the global 'process' object in client-side code.`;
 
 const DEEP_THINKING = `### 🧠 DEEP THINKING PROTOCOL (MANDATORY):
 Before generating any code, you MUST use the "thought" field to perform a deep analysis:
@@ -188,9 +190,18 @@ export class GeminiService implements AIProvider {
         });
         
         let text = response.text || '{}';
-        // Sanitize markdown code blocks if present (even with JSON mode, some models add it)
-        text = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
-        
+        // Attempt to find a JSON block in the response, in case the model adds extra text
+        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          text = jsonMatch[1];
+        } else {
+          // If no markdown block, try to find the first { and last }
+          const firstBrace = text.indexOf('{');
+          const lastBrace = text.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            text = text.substring(firstBrace, lastBrace + 1);
+          }
+        }
         return JSON.parse(text);
       } catch (error: any) {
         Logger.warn(`Attempt ${attempt} failed`, { component: 'GeminiService', model, attempt }, error);

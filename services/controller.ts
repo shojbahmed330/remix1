@@ -113,8 +113,8 @@ export class AIController {
 
     while (attempts < maxAttempts) {
       try {
-        let generatedFiles: Record<string, string> = {};
-        let currentContextFiles = { ...currentFiles };
+        let generatedFilesThisAttempt: Record<string, string> = {};
+        let currentContextFiles = { ...currentFiles }; // Files including current project state + generated files
         let accumulatedApplyErrors: string[] = [];
         let thoughts: string[] = [];
         let finalPlan: string[] = [];
@@ -125,15 +125,16 @@ export class AIController {
           currentPrompt += `\n\n🚨 CRITICAL RECOVERY MODE:\nYou previously failed to generate valid patches for these files:\n${Array.from(failedPatchFiles).map(f => `- ${f}`).join('\n')}\n\nFor these specific files ONLY, DO NOT USE PATCHES. You MUST return the FULL, complete file content.`;
         }
 
-        const applyPhaseFiles = (phaseFiles: Record<string, string>) => {
-          generatedFiles = { ...generatedFiles, ...phaseFiles };
+        // Helper to apply files and accumulate errors
+        const applyAndValidateGeneratedFiles = (phaseFiles: Record<string, string>) => {
+          generatedFilesThisAttempt = { ...generatedFilesThisAttempt, ...phaseFiles };
           const { merged, errors } = this.diffEngine.applyChanges(currentContextFiles, phaseFiles, failedPatchFiles);
           currentContextFiles = merged;
           accumulatedApplyErrors.push(...errors);
-          
+
           for (const err of errors) {
-            const patchMatch = err.match(/Failed to apply patch for ([^\s:]+)/);
-            const fullFileMatch = err.match(/File ([^\s:]+) was returned as a full file/);
+            const patchMatch = err.match(/Failed to apply patch for ([^\\s:]+)/);
+            const fullFileMatch = err.match(/File ([^\\s:]+) was returned as a full file/);
             const target = (patchMatch && patchMatch[1]) || (fullFileMatch && fullFileMatch[1]);
             if (target) {
               const cleanedTarget = target.replace(/[,.]$/, '').trim();
@@ -141,8 +142,8 @@ export class AIController {
               failedPatchFiles.add(cleanedTarget);
             }
           }
-          
-          this.updateDependencyGraph(currentContextFiles);
+
+          this.updateDependencyGraph(currentContextFiles); // Update graph with newly merged files
         };
 
         const isPatchMode = false; // Disabled: Always use full files for reliability
@@ -167,6 +168,13 @@ export class AIController {
           const plan = await this.orchestrator.executePhaseWithCache('planning', input, modelName, this.memory.phaseCache);
           thoughts.push(`[PLAN]: ${plan.thought || 'Planned architecture.'}`);
           finalPlan = plan.plan || [];
+
+          // Pre-apply dependency audit on the plan itself (Pass A validation)
+          const planValidationErrors = this.validator.validatePlan(finalPlan, currentContextFiles);
+          if (planValidationErrors.length > 0) {
+            // If plan validation fails, do not proceed to coding
+            throw new Error(`Plan validation failed: ${planValidationErrors.join('; ')}`);
+          }
         }
 
         // Phase 2: Coding (Developer)
@@ -179,7 +187,7 @@ export class AIController {
           const code = await this.orchestrator.executePhaseWithCache('coding', input, modelName, this.memory.phaseCache);
           thoughts.push(`[CODE]: ${code.thought || 'Implemented code.'}`);
           if (code.answer) finalAnswer = code.answer;
-          applyPhaseFiles(code.files || {});
+          applyAndValidateGeneratedFiles(code.files || {});
         }
 
         // Phase 3: Review
@@ -188,11 +196,11 @@ export class AIController {
           const reviewPrompt = currentPrompt + enforceInstruction;
           const input = mode === GenerationMode.FIX
             ? `USER REQUEST (FIX ERROR):\n${reviewPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
-            : `GENERATED FILES:\n${JSON.stringify(generatedFiles)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
+            : `GENERATED FILES:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
           const review = await this.orchestrator.executePhaseWithCache('review', input, modelName, this.memory.phaseCache);
           thoughts.push(`[REVIEW]: ${review.thought || 'Reviewed code.'}`);
           if (mode === GenerationMode.FIX && review.answer) finalAnswer = review.answer;
-          applyPhaseFiles(review.files || {});
+          applyAndValidateGeneratedFiles(review.files || {});
         }
 
         // Phase 4: Security
@@ -200,11 +208,11 @@ export class AIController {
           yield { type: 'status', phase: 'SECURITY', message: "Security audit..." };
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE SECURITY):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
-            : `FILES TO SECURE:\n${JSON.stringify(generatedFiles)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
+            : `FILES TO SECURE:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
           const security = await this.orchestrator.executePhaseWithCache('security', input, modelName, this.memory.phaseCache);
           thoughts.push(`[SECURITY]: ${security.thought || 'Security audit complete.'}`);
           if (mode === GenerationMode.OPTIMIZE && security.answer) finalAnswer = security.answer;
-          applyPhaseFiles(security.files || {});
+          applyAndValidateGeneratedFiles(security.files || {});
         }
 
         // Phase 5: Performance
@@ -212,10 +220,10 @@ export class AIController {
           yield { type: 'status', phase: 'PERFORMANCE', message: "Performance audit..." };
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE PERFORMANCE):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
-            : `FILES TO AUDIT:\n${JSON.stringify(generatedFiles)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
+            : `FILES TO AUDIT:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
           const perf = await this.orchestrator.executePhaseWithCache('performance', input, modelName, this.memory.phaseCache);
           thoughts.push(`[PERF]: ${perf.thought || 'Performance audit complete.'}`);
-          applyPhaseFiles(perf.files || {});
+          applyAndValidateGeneratedFiles(perf.files || {});
         }
 
         // Phase 6: UI/UX
@@ -223,14 +231,15 @@ export class AIController {
           yield { type: 'status', phase: 'UIUX', message: "UI/UX polish..." };
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE UI/UX):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
-            : `FILES TO POLISH:\n${JSON.stringify(generatedFiles)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
+            : `FILES TO POLISH:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
           const uiux = await this.orchestrator.executePhaseWithCache('uiux', input, modelName, this.memory.phaseCache);
           thoughts.push(`[UIUX]: ${uiux.thought || 'UI/UX polish complete.'}`);
-          applyPhaseFiles(uiux.files || {});
+          if (mode === GenerationMode.OPTIMIZE && uiux.answer) finalAnswer = uiux.answer;
+          applyAndValidateGeneratedFiles(uiux.files || {});
         }
 
         // 3.5 Patch Enforcement Check
-        const patchViolations = this.diffEngine.enforcePatchRules(generatedFiles, currentFiles, failedPatchFiles);
+        const patchViolations = this.diffEngine.enforcePatchRules(generatedFilesThisAttempt, currentFiles, failedPatchFiles);
         if (patchViolations.length > 0) {
           yield { type: 'status', phase: 'FIXING', message: "Fixing patch violations..." };
           Logger.warn(`Patch violation detected`, { ...logContext, violations: patchViolations });
@@ -243,64 +252,48 @@ export class AIController {
           continue;
         }
 
-        // 4. Diff Engine & Migration Logic
-        const mergedFiles = currentContextFiles;
-        const applyErrors = accumulatedApplyErrors;
+        // 4. Transactional Apply & Pre-apply Dependency Audit
+        // All-or-nothing: If any critical validation fails, the entire set of generated files for this attempt is rejected.
+        // This prevents partial merges and ensures structural consistency.
+        const filesToValidateBeforeApply = generatedFilesThisAttempt;
+        const preApplyValidationErrors = this.validator.validateOutput(filesToValidateBeforeApply, currentContextFiles, this.dependencyGraph);
+        preApplyValidationErrors.push(...accumulatedApplyErrors);
 
-        this.updateDependencyGraph(mergedFiles);
+        if (preApplyValidationErrors.length > 0) {
+          yield { type: 'status', phase: 'FIXING', message: `Pre-apply validation failed (${preApplyValidationErrors.length} errors). Rejecting changes (Attempt ${attempts + 1})...` };
+          yield { type: 'validation_errors', errors: preApplyValidationErrors };
+          Logger.warn(`Pre-apply validation failed (Attempt ${attempts + 1})`, { ...logContext, preApplyValidationErrors });
 
-        // 5. Runtime Validation (Sanity Check)
-        yield { type: 'status', phase: 'REVIEW', message: "Validating code..." };
-        const changedFilesToValidate: Record<string, string> = {};
-        for (const [path, content] of Object.entries(mergedFiles)) {
-          if (content !== currentFiles[path]) {
-            changedFilesToValidate[path] = content;
-          }
-        }
-        const validationErrors = this.validator.validateOutput(changedFilesToValidate, mergedFiles, this.dependencyGraph);
-        validationErrors.push(...applyErrors);
-        
-        if (impactedFiles.length > 0) {
-          const missingImpactFiles = impactedFiles.filter(
-            f => !Object.keys(generatedFiles).some(p => p.includes(f))
-          );
-          if (missingImpactFiles.length > 0) {
-            validationErrors.push(`CRITICAL: You failed to update required dependent files:\n${missingImpactFiles.join('\n')}\nYou MUST update them to maintain structural consistency.`);
-          }
-        }
-
-        if (validationErrors.length > 0) {
-          yield { type: 'status', phase: 'FIXING', message: `Fixing ${validationErrors.length} errors (Attempt ${attempts + 1})...` };
-          yield { type: 'validation_errors', errors: validationErrors };
-          Logger.warn(`Validation failed (Attempt ${attempts + 1})`, { ...logContext, validationErrors });
-          
-          // Intelligent Retry Strategy
-          let strategyInstruction = "";
-          if (attempts >= 2) {
-             strategyInstruction = "\n\nSTRATEGY CHANGE: You are failing repeatedly. SIMPLIFY the implementation. Remove complex types or advanced features if they are causing errors. Focus on basic functionality.";
-          }
-          if (attempts >= 4) {
-             strategyInstruction = "\n\nEMERGENCY MODE: Just output the simplest possible working code. Ignore best practices if necessary to pass validation.";
-          }
-
-          // Error Categorization
-          const errorSummary = validationErrors.map(e => {
-            if (e.includes('Missing import')) return "MISSING FILE: Create the file you are importing.";
-            if (e.includes('Syntax Error')) return "SYNTAX ERROR: Fix TypeScript syntax.";
-            if (e.includes('JSON')) return "JSON ERROR: Fix JSON format.";
-            return e;
-          }).join('\n');
-
-          errorContext = `\n\n🚨 VALIDATION FAILED (Attempt ${attempts + 1}):\n${errorSummary}\n${strategyInstruction}\n\nPlease fix these errors in your next response.`;
+          // Fail-class aware retry for pre-apply errors
+          errorContext = this.buildErrorContext(preApplyValidationErrors, attempts);
           attempts++;
-          continue;
+          continue; // Retry with new error context
+        }
+
+        // If pre-apply validation passes, then the changes are considered valid for merging.
+        // The `currentContextFiles` already holds the merged state after `applyAndValidateGeneratedFiles` calls.
+        const mergedFiles = currentContextFiles;
+        this.updateDependencyGraph(mergedFiles); // Final update after successful merge
+
+        // 5. Runtime Validation (Post-apply sanity check - mostly for final structural consistency)
+        yield { type: 'status', phase: 'REVIEW', message: "Validating final code structure..." };
+        const postApplyValidationErrors = this.validator.validateOutput(mergedFiles, mergedFiles, this.dependencyGraph);
+
+        if (postApplyValidationErrors.length > 0) {
+          yield { type: 'status', phase: 'FIXING', message: `Post-apply validation failed (${postApplyValidationErrors.length} errors). (Attempt ${attempts + 1})...` };
+          yield { type: 'validation_errors', errors: postApplyValidationErrors };
+          Logger.warn(`Post-apply validation failed (Attempt ${attempts + 1})`, { ...logContext, postApplyValidationErrors });
+
+          errorContext = this.buildErrorContext(postApplyValidationErrors, attempts);
+          attempts++;
+          continue; // Retry with new error context
         }
 
         // 6. Success: Finalize Result
         yield { type: 'status', phase: 'BUILDING', message: "Building application..." };
         yield { type: 'status', phase: 'PREVIEW_READY', message: "Finalizing build..." };
         finalResult = {
-          files: generatedFiles,
+          files: generatedFilesThisAttempt, // Return only the files generated in this successful attempt
           answer: finalAnswer,
           thought: thoughts.join('\n\n'),
           plan: finalPlan,
@@ -324,6 +317,28 @@ export class AIController {
     }
 
     throw new Error("Failed to generate code after multiple attempts.");
+  }
+
+  private buildErrorContext(validationErrors: string[], attempts: number): string {
+    let strategyInstruction = "";
+    if (attempts >= 2) {
+      strategyInstruction = "\n\nSTRATEGY CHANGE: You are failing repeatedly. SIMPLIFY the implementation. Remove complex types or advanced features if they are causing errors. Focus on basic functionality.";
+    }
+    if (attempts >= 4) {
+      strategyInstruction = "\n\nEMERGENCY MODE: Just output the simplest possible working code. Ignore best practices if necessary to pass validation.";
+    }
+
+    const errorSummary = validationErrors.map(e => {
+      if (e.includes('Missing import target')) return "MISSING FILE: Create the file you are importing. Ensure the path is correct.";
+      if (e.includes('failed to update required dependent files')) return "DEPENDENCY UPDATE FAILED: You MUST update the listed dependent files to maintain structural consistency.";
+      if (e.includes('Syntax Error')) return "SYNTAX ERROR: Fix TypeScript/JavaScript syntax.";
+      if (e.includes('JSON')) return "JSON ERROR: Fix JSON format.";
+      if (e.includes('React Key Error')) return "REACT KEY ERROR: Add unique 'key' props to list items.";
+      if (e.includes('Forbidden pattern')) return "FORBIDDEN PATTERN: Remove Node.js/CommonJS specific features (e.g., require, module.exports, process) from browser-side code.";
+      return e;
+    }).join('\n');
+
+    return `\n\n🚨 VALIDATION FAILED (Attempt ${attempts + 1}):\n${errorSummary}\n${strategyInstruction}\n\nPlease fix these errors in your next response.`;
   }
 
   async *processRequestStream(

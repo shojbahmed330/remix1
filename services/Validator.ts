@@ -12,6 +12,7 @@ export class Validator {
     errors.push(...this.validateImports(filesToValidate, allFiles));
     errors.push(...this.validateTypeScriptSyntax(filesToValidate));
     errors.push(...this.detectCircularDependencies(dependencyGraph));
+    errors.push(...this.validateReactKeys(filesToValidate));
     return errors;
   }
 
@@ -51,13 +52,12 @@ export class Validator {
   public validateTypeScriptSyntax(files: Record<string, string>): string[] {
     const errors: string[] = [];
     for (const [fileName, content] of Object.entries(files)) {
-      if (!fileName.endsWith('.ts') && !fileName.endsWith('.tsx')) continue;
-      
-      // Check for 'require' usage
-      if (content.match(/require\s*\(/) && !content.includes('createRequire')) {
+      // Check for 'require' usage in all JS/TS files, excluding config files like tailwind.config.js
+      if (!fileName.includes('tailwind.config.js') && (fileName.endsWith('.ts') || fileName.endsWith('.tsx') || fileName.endsWith('.js') || fileName.endsWith('.jsx')) && content.match(/require\s*\(/) && !content.includes('createRequire')) {
         errors.push(`TS Syntax Error in ${fileName}: "require()" is not supported in Vite. Use ES6 "import" syntax instead.`);
       }
 
+      if (!fileName.endsWith('.ts') && !fileName.endsWith('.tsx')) continue;
       try {
         const sourceFile = ts.createSourceFile(
           fileName,
@@ -175,5 +175,42 @@ export class Validator {
 
   public normalizePath(p: string): string {
     return p.replace(/\\/g, '/').replace(/\/\//g, '/');
+  }
+
+  public validateReactKeys(files: Record<string, string>): string[] {
+    const errors: string[] = [];
+    for (const [fileName, content] of Object.entries(files)) {
+      if (!fileName.endsWith('.tsx') && !fileName.endsWith('.jsx')) continue;
+
+      // Simple regex to detect map functions without a key prop
+      const regex = /\.map\(\s*\(([^)]*?)\)\s*=>\s*<([a-zA-Z0-9]+)(?!\s+key)/g;
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        errors.push(`React Key Error in ${fileName}: List rendered without a unique 'key' prop. Ensure all mapped elements have a 'key'.`);
+      }
+    }
+    return errors;
+  }
+
+  public validatePlan(plan: string[], currentFiles: Record<string, string>): string[] {
+    const errors: string[] = [];
+    for (const step of plan) {
+      const createMatch = step.match(/CREATE\s+FILE\s+([\\w\\/\\.-\\s]+?\.[tj]sx?)/i);
+      if (createMatch) {
+        const filePath = this.normalizePath(createMatch[1]);
+        if (currentFiles[filePath] !== undefined) {
+          errors.push(`Plan Error: File to be created '${filePath}' already exists.`);
+        }
+      }
+
+      const updateMatch = step.match(/UPDATE\s+FILE\s+([\\w\\/\\.-\\s]+?\.[tj]sx?)/i);
+      if (updateMatch) {
+        const filePath = this.normalizePath(updateMatch[1]);
+        if (currentFiles[filePath] === undefined) {
+          errors.push(`Plan Error: File to be updated '${filePath}' does not exist.`);
+        }
+      }
+    }
+    return errors;
   }
 }

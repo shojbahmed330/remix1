@@ -2,6 +2,26 @@
 import React, { useRef } from 'react';
 import { LanguageProvider } from './i18n/LanguageContext.tsx';
 
+// Function to validate generated files for forbidden runtime patterns
+function validateGeneratedFiles(files: Record<string, string>): string[] {
+  const errors: string[] = [];
+  const forbiddenPatterns = [
+    /\brequire\s*\(/, // CommonJS require
+    /\bmodule\.exports\b/, // CommonJS exports
+    /\bprocess\.(env|browser|version)\b/, // Node.js process object
+  ];
+
+  for (const [fileName, content] of Object.entries(files)) {
+    if (fileName.includes('tailwind.config.js')) continue; // Exclude tailwind config
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(content)) {
+        errors.push(`Forbidden pattern found in ${fileName}: ${pattern.source}. This code is not compatible with browser environments.`);
+      }
+    }
+  }
+  return errors;
+}
+
 // Hook Imports
 import { useAppAuth } from './hooks/useAppAuth.ts';
 import { useAppLogic } from './hooks/useAppLogic.ts';

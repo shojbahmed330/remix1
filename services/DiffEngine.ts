@@ -53,6 +53,16 @@ export class DiffEngine {
       }
     );
 
+    // Auto-fix: Replace require() with import() for Vite compatibility
+    normalized = normalized.replace(
+      /require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+      (match, path) => {
+        // Only replace if it's not a special require like createRequire
+        if (match.includes('createRequire')) return match;
+        return `import('${path}')`; // Returns a Promise
+      }
+    );
+
     return normalized.trim();
   }
 

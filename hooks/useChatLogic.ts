@@ -4,6 +4,16 @@ import { ChatMessage, BuilderPhase, BuilderStatus, WorkspaceType, ProjectConfig,
 import { AIController } from '../services/controller';
 import { DatabaseService } from '../services/dbService';
 
+// Utility to create a unique message ID
+const createMessageId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  } else {
+    // Fallback for environments where crypto.randomUUID is not available
+    return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+  }
+};
+
 export interface ChatLogic {
   messages: ChatMessage[];
   setMessages: (msgs: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
@@ -168,7 +178,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       const lowerInput = promptText.toLowerCase();
       if (['yes', 'ha', 'proceed', 'y', 'correct'].includes(lowerInput)) {
         setWaitingForApproval(false);
-        const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: "Yes, proceed.", timestamp: Date.now() };
+        const userMsg: ChatMessage = { id: createMessageId(), role: 'user', content: "Yes, proceed.", timestamp: Date.now() };
         setMessages(prev => [...prev, userMsg]);
         const nextTask = activeQueue[0];
         const newQueue = activeQueue.slice(1);
@@ -187,7 +197,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       if (!isAuto) {
         autoStepCountRef.current = 0;
         const userMsg: ChatMessage = { 
-          id: Date.now().toString(), 
+          id: createMessageId(), 
           role: 'user', 
           content: promptText, 
           image: selectedImage?.preview, 
@@ -198,7 +208,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
         setSelectedImage(null);
       }
 
-      const assistantId = (Date.now() + 1).toString();
+      const assistantId = createMessageId();
       const originalFiles = { ...projectFilesRef.current };
       
       setMessages(prev => [...prev, { 
@@ -220,7 +230,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       const messagesSnapshot = [...messagesRef.current];
       if (!isAuto) {
         messagesSnapshot.push({ 
-          id: Date.now().toString(), 
+          id: createMessageId(), 
           role: 'user', 
           content: promptText, 
           image: selectedImage?.preview, 
