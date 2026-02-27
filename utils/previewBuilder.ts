@@ -169,6 +169,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
     const headInjection = `
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+      <base href="https://preview.local/">
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -188,7 +189,10 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       return `<!DOCTYPE html><html lang="en"><head>${headInjection}</head><body>${processedHtml}${bootstrapScript}</body></html>`;
     }
 
-    if (processedHtml.includes('</head>')) {
+    const hasHead = /<head[^>]*>/i.test(processedHtml);
+    if (hasHead) {
+      processedHtml = processedHtml.replace(/<head([^>]*)>/i, `<head$1>${headInjection}`);
+    } else if (processedHtml.includes('</head>')) {
       processedHtml = processedHtml.replace('</head>', `${headInjection}</head>`);
     } else {
       processedHtml = processedHtml.replace('<body', `<head>${headInjection}</head><body`);
