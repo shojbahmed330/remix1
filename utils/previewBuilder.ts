@@ -97,15 +97,17 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
         ];
 
         if (path.startsWith('app/')) {
-          possiblePaths.push(path.replace('app/', './'));
-          possiblePaths.push(path.replace('app/', './').replace(/\.(ts|tsx|js|jsx)$/, ''));
+          const appRelativeWithExt = path.replace('app/', './');
+          const appRelative = appRelativeWithExt.replace(/\.(ts|tsx|js|jsx)$/, '');
+          possiblePaths.push(appRelativeWithExt, appRelative, appRelative.replace(/^\.\//, '/'));
         }
         if (path.startsWith('admin/')) {
-          possiblePaths.push(path.replace('admin/', './'));
-          possiblePaths.push(path.replace('admin/', './').replace(/\.(ts|tsx|js|jsx)$/, ''));
+          const adminRelativeWithExt = path.replace('admin/', './');
+          const adminRelative = adminRelativeWithExt.replace(/\.(ts|tsx|js|jsx)$/, '');
+          possiblePaths.push(adminRelativeWithExt, adminRelative, adminRelative.replace(/^\.\//, '/'));
         }
 
-        // Also map common source-root prefixes to "./..." imports.
+        // Also map common source-root prefixes to "./..." and "/..." imports.
         // Example: src/components/Button.tsx should resolve both
         // "./src/components/Button" and "./components/Button".
         const aliasPrefixes: string[] = ['src/', 'app/src/', 'admin/src/', 'frontend/', 'client/', 'web/'];
@@ -115,6 +117,23 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
           if (!withoutPrefix) continue;
           possiblePaths.push(`./${withoutPrefix}`, `/${withoutPrefix}`);
         }
+
+        // If module is an index file, map its parent directory import too.
+        // Example: app/components/Calculator/index.tsx -> /components/Calculator
+        if (cleanPath.endsWith('/index')) {
+          const parent = cleanPath.slice(0, -('/index'.length));
+          possiblePaths.push(parent, `./${parent}`, `/${parent}`);
+          if (parent.startsWith('app/')) {
+            const appParent = parent.replace(/^app\//, '');
+            possiblePaths.push(`./${appParent}`, `/${appParent}`);
+          }
+          if (parent.startsWith('admin/')) {
+            const adminParent = parent.replace(/^admin\//, '');
+            possiblePaths.push(`./${adminParent}`, `/${adminParent}`);
+          }
+        }
+
+
 
         [...new Set(possiblePaths)].filter(Boolean).forEach(p => {
           importMap[p!] = url;
