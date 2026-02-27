@@ -83,25 +83,25 @@ export class DiffEngine {
     const result = { ...base };
     const errors: string[] = [];
 
-    for (const [path, newContent] of Object.entries(changes)) {
+    for (const [path, incomingContent] of Object.entries(changes)) {
       // Handle database migrations separately
       if (path === 'database.sql' && base[path]) {
         const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
         const migrationPath = `migrations/${timestamp}_auto_migration.sql`;
-        result[migrationPath] = newContent;
+        result[migrationPath] = this.normalize(incomingContent);
         continue;
       }
 
       // If file doesn't exist, create it
       if (!base[path]) {
-        result[path] = this.normalize(newContent);
+        result[path] = this.normalize(incomingContent);
         continue;
       }
 
       // If file exists, try to apply patch
       try {
         const baseContent = this.normalize(base[path]);
-        let trimmed = newContent.trim();
+        let trimmed = incomingContent.trim();
         let isUnifiedDiff = trimmed.startsWith('--- ') || trimmed.includes('@@ ');
 
         // Handle false positive: File starts with "--- filename" but has no hunks (@@)
@@ -112,7 +112,7 @@ export class DiffEngine {
            if (lines[0].startsWith('--- ')) {
              // Strip the header and treat as full file
              trimmed = lines.slice(1).join('\n').trim();
-             newContent = trimmed; // This was the const reassignment issue
+             // Keep as full file content after header strip
            }
         }
 
@@ -160,7 +160,7 @@ export class DiffEngine {
         }
 
         // Handle full file replacement
-        result[path] = this.normalize(newContent);
+        result[path] = this.normalize(trimmed);
         continue;
 
       } catch (e: any) {

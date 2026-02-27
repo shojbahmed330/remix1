@@ -54,7 +54,10 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       } else if (path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.jsx')) {
         try {
           const transpiled = transform(content, {
-            transforms: ['typescript', 'jsx', 'imports'],
+            // Keep ESM imports for the browser runtime.
+            // Using the `imports` transform rewrites imports to CommonJS `require(...)`,
+            // which causes `Uncaught ReferenceError: require is not defined` in preview.
+            transforms: ['typescript', 'jsx'],
             jsxRuntime: 'automatic',
             production: true
           }).code;

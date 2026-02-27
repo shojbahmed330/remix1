@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User as UserType, Project, BuilderPhase } from '../types';
 import { useProjectManager } from './useProjectManager';
 import { useBuildManager } from './useBuildManager';
@@ -15,6 +15,8 @@ export interface ToastMessage {
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat');
+  const lastRuntimeErrorRef = useRef<{ key: string; timestamp: number } | null>(null);
+  const autoFixAttemptsRef = useRef<Map<string, number>>(new Map());
 
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
     const id = Date.now().toString();
@@ -90,11 +92,28 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'RUNTIME_ERROR') {
         const error = event.data.error;
+        const errorKey = `${error?.source || 'unknown'}|${error?.line || 0}|${error?.message || 'Unknown error'}`;
+        const now = Date.now();
+
+        // Guard against noisy duplicate postMessage events from iframe rerenders.
+        const lastError = lastRuntimeErrorRef.current;
+        if (lastError && lastError.key === errorKey && now - lastError.timestamp < 4000) {
+          return;
+        }
+
+        lastRuntimeErrorRef.current = { key: errorKey, timestamp: now };
         chatLogic.setRuntimeError(error);
         addToast(`Runtime Error: ${error.message}`, 'error');
+
+        const attempts = autoFixAttemptsRef.current.get(errorKey) || 0;
+        if (attempts >= 2) {
+          addToast('Auto-fix paused: same runtime error repeated. Please review generated code/imports manually.', 'info');
+          return;
+        }
         
         setTimeout(() => {
           if (!chatLogic.isGenerating && !chatLogic.isRepairing) {
+            autoFixAttemptsRef.current.set(errorKey, attempts + 1);
             chatLogic.handleAutoFix();
           }
         }, 1000);
