@@ -105,6 +105,17 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
           possiblePaths.push(path.replace('admin/', './').replace(/\.(ts|tsx|js|jsx)$/, ''));
         }
 
+        // Also map common source-root prefixes to "./..." imports.
+        // Example: src/components/Button.tsx should resolve both
+        // "./src/components/Button" and "./components/Button".
+        const aliasPrefixes: string[] = ['src/', 'app/src/', 'admin/src/', 'frontend/', 'client/', 'web/'];
+        for (const prefix of aliasPrefixes) {
+          if (!cleanPath.startsWith(prefix)) continue;
+          const withoutPrefix = cleanPath.slice(prefix.length);
+          if (!withoutPrefix) continue;
+          possiblePaths.push(`./${withoutPrefix}`, `/${withoutPrefix}`);
+        }
+
         [...new Set(possiblePaths)].filter(Boolean).forEach(p => {
           importMap[p!] = url;
         });
