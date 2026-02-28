@@ -132,6 +132,86 @@ Check for:
 Output ONLY a JSON object with "thought" (design findings) and "files" (only if changes are needed).`;
 
 export class GeminiService implements AIProvider {
+  private extractBalancedJsonBlock(input: string): string | null {
+    const start = input.indexOf('{');
+    if (start === -1) return null;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < input.length; i++) {
+      const ch = input[i];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (ch === '{') depth++;
+      if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          return input.slice(start, i + 1);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private parseModelJson(rawText: string): any {
+    const text = (rawText || '{}').trim();
+
+    // 1) Direct parse first
+    try {
+      return JSON.parse(text);
+    } catch {
+      // continue
+    }
+
+    // 2) Parse fenced JSON block if present
+    const fenced = text.match(/```json\s*([\s\S]*?)\s*```/i)?.[1]?.trim();
+    if (fenced) {
+      try {
+        return JSON.parse(fenced);
+      } catch {
+        // continue
+      }
+    }
+
+    // 3) Parse first syntactically balanced JSON object from mixed text
+    const balanced = this.extractBalancedJsonBlock(text);
+    if (balanced) {
+      try {
+        return JSON.parse(balanced);
+      } catch {
+        // continue
+      }
+    }
+
+    // 4) Legacy fallback: first { to last }
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const slice = text.substring(firstBrace, lastBrace + 1);
+      return JSON.parse(slice);
+    }
+
+    return JSON.parse(text);
+  }
+
   private isLocalModel(modelName: string): boolean {
     const name = modelName.toLowerCase();
     return name.includes('local') || name.includes('llama') || name.includes('qwen') || name.includes('coder');
@@ -189,20 +269,7 @@ export class GeminiService implements AIProvider {
           }
         });
         
-        let text = response.text || '{}';
-        // Attempt to find a JSON block in the response, in case the model adds extra text
-        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonMatch && jsonMatch[1]) {
-          text = jsonMatch[1];
-        } else {
-          // If no markdown block, try to find the first { and last }
-          const firstBrace = text.indexOf('{');
-          const lastBrace = text.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            text = text.substring(firstBrace, lastBrace + 1);
-          }
-        }
-        return JSON.parse(text);
+        return this.parseModelJson(response.text || '{}');
       } catch (error: any) {
         Logger.warn(`Attempt ${attempt} failed`, { component: 'GeminiService', model, attempt }, error);
         lastError = error;
