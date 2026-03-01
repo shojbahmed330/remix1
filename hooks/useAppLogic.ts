@@ -17,9 +17,14 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat');
   const lastRuntimeErrorRef = useRef<{ key: string; timestamp: number } | null>(null);
   const autoFixAttemptsRef = useRef<Map<string, number>>(new Map());
+  const toastCounterRef = useRef(0);
 
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
-    const id = Date.now().toString();
+    toastCounterRef.current += 1;
+    const uniqueSuffix = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    const id = `${Date.now()}-${toastCounterRef.current}-${uniqueSuffix}`;
     setToasts(prev => [...prev, { id, message, type }]);
   }, []);
 

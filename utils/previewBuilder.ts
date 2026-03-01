@@ -284,6 +284,37 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       "react-virtualized": "https://esm.sh/react-virtualized@9.22.5",
       "@tanstack/react-virtual": "https://esm.sh/@tanstack/react-virtual@3.11.2",
 
+      // ✅ Audio
+      "wavesurfer.js": "https://esm.sh/wavesurfer.js@7.8.15",
+      "wavesurfer.js/": "https://esm.sh/wavesurfer.js@7.8.15/",
+      "wavesurfer.js/dist/plugins/": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/",
+
+      // Common Wavesurfer plugins (explicit aliases)
+      "wavesurfer.js/dist/plugins/regions": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/regions.esm.js",
+      "wavesurfer.js/dist/plugins/regions.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/regions.esm.js",
+      "wavesurfer.js/dist/plugins/regions.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/regions.esm.js",
+      "wavesurfer.js/dist/plugins/timeline": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/timeline.esm.js",
+      "wavesurfer.js/dist/plugins/timeline.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/timeline.esm.js",
+      "wavesurfer.js/dist/plugins/timeline.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/timeline.esm.js",
+      "wavesurfer.js/dist/plugins/minimap": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/minimap.esm.js",
+      "wavesurfer.js/dist/plugins/minimap.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/minimap.esm.js",
+      "wavesurfer.js/dist/plugins/minimap.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/minimap.esm.js",
+      "wavesurfer.js/dist/plugins/spectrogram": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/spectrogram.esm.js",
+      "wavesurfer.js/dist/plugins/spectrogram.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/spectrogram.esm.js",
+      "wavesurfer.js/dist/plugins/spectrogram.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/spectrogram.esm.js",
+      "wavesurfer.js/dist/plugins/envelope": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/envelope.esm.js",
+      "wavesurfer.js/dist/plugins/envelope.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/envelope.esm.js",
+      "wavesurfer.js/dist/plugins/envelope.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/envelope.esm.js",
+      "wavesurfer.js/dist/plugins/hover": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/hover.esm.js",
+      "wavesurfer.js/dist/plugins/hover.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/hover.esm.js",
+      "wavesurfer.js/dist/plugins/hover.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/hover.esm.js",
+      "wavesurfer.js/dist/plugins/record": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/record.esm.js",
+      "wavesurfer.js/dist/plugins/record.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/record.esm.js",
+      "wavesurfer.js/dist/plugins/record.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/record.esm.js",
+      "wavesurfer.js/dist/plugins/zoom": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/zoom.esm.js",
+      "wavesurfer.js/dist/plugins/zoom.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/zoom.esm.js",
+      "wavesurfer.js/dist/plugins/zoom.esm.js": "https://esm.sh/wavesurfer.js@7.8.15/dist/plugins/zoom.esm.js",
+
       // ✅ 3D & Canvas
       "three": "https://esm.sh/three@0.170.0",
       "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.17.10",
