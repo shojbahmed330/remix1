@@ -53,7 +53,7 @@ const AppConfigView: React.FC<AppConfigViewProps> = ({ config, onUpdate, onBack 
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-black animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 md:pb-12">
+    <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-black animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
       <div className="max-w-4xl mx-auto space-y-10">
         
         <div className="flex items-center justify-between border-b border-white/5 pb-8">

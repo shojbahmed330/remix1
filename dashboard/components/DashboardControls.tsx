@@ -24,7 +24,7 @@ export const MobileControls: React.FC<DashboardControlsProps> = ({
   return (
     <>
       {/* MOBILE HUD - Clean and Ergonomic */}
-      <div className={`lg:hidden fixed top-16 left-0 right-0 z-[450] px-4 pointer-events-none flex flex-col gap-4 transition-opacity duration-300 ${isGenerating ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`lg:hidden absolute top-4 left-0 right-0 z-[450] px-4 pointer-events-none flex flex-col gap-4 transition-opacity duration-300 ${isGenerating ? 'opacity-0' : 'opacity-100'}`}>
         {/* Main View Switcher */}
         <div className="flex justify-center w-full">
             <div className="bg-black/80 backdrop-blur-2xl p-1 rounded-full border border-white/10 flex gap-1 shadow-2xl pointer-events-auto ring-1 ring-white/5 w-[240px]">
@@ -44,9 +44,9 @@ export const MobileControls: React.FC<DashboardControlsProps> = ({
         </div>
 
         {/* Floating Quick Actions (Always on Right) */}
-        <div className="fixed right-4 bottom-24 flex flex-col items-end gap-3 pointer-events-auto">
+        <div className="absolute right-4 top-16 flex flex-col items-end gap-3 pointer-events-auto">
           {isOpen && (
-            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
               <button onClick={() => { onOpenHistory(); setIsOpen(false); }} className="w-12 h-12 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center text-zinc-400 shadow-2xl active:scale-90 transition-all">
                 <History size={18} />
               </button>
@@ -61,16 +61,16 @@ export const MobileControls: React.FC<DashboardControlsProps> = ({
           
           <button 
             onClick={() => setIsOpen(!isOpen)}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white transition-all duration-500 shadow-2xl border border-white/10 active:scale-95 ${isOpen ? 'bg-zinc-800 rotate-90 border-pink-500/50' : 'bg-pink-600 shadow-pink-600/20 ring-4 ring-pink-500/10'}`}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white transition-all duration-500 shadow-2xl border border-white/10 active:scale-95 ${isOpen ? 'bg-zinc-800 rotate-90 border-pink-500/50' : 'bg-pink-600 shadow-pink-600/20 ring-4 ring-pink-500/10'}`}
           >
-            {isOpen ? <X size={24}/> : <LayoutGrid size={24}/>}
+            {isOpen ? <X size={20}/> : <LayoutGrid size={20}/>}
           </button>
         </div>
       </div>
 
       {/* CONTEXTUAL WORKSPACE TOGGLE (Only in Preview Mode) */}
       {mobileTab === 'preview' && (
-        <div className={`lg:hidden fixed bottom-24 left-6 z-[440] pointer-events-none transition-opacity duration-300 ${isGenerating ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`lg:hidden absolute bottom-4 left-4 z-[440] pointer-events-none transition-opacity duration-300 ${isGenerating ? 'opacity-0' : 'opacity-100'}`}>
           <div className="bg-zinc-900/95 backdrop-blur-2xl p-1 rounded-2xl border border-white/5 flex flex-col gap-1 shadow-xl pointer-events-auto">
             <button 
               onClick={() => setWorkspace('app')}

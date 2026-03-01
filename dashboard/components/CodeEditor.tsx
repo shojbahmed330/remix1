@@ -135,7 +135,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
          </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden w-full relative pb-20 lg:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden w-full relative">
          <div className="w-full overflow-hidden flex items-center bg-[#09090b]">
             <button 
               onClick={() => { setActiveView('explorer'); setShowMobileSidebar(true); }}
