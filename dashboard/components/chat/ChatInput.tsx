@@ -143,7 +143,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const isQueued = executionQueue && executionQueue.length > 0;
 
   return (
-    <div className="p-4 md:p-6 pb-28 md:pb-6 border-t border-white/5 bg-black/60 backdrop-blur-2xl relative z-20">
+    <div className="p-4 md:p-6 border-t border-white/5 bg-black/60 backdrop-blur-2xl relative z-20">
       {/* Suggestions Popover */}
       {showSuggestions && filteredSuggestions.length > 0 && (
         <div className="absolute bottom-full left-2 right-2 md:left-6 md:right-auto md:w-80 mb-2 bg-[#121214] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
