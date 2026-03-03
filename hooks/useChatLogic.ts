@@ -338,7 +338,9 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
         });
       }
 
-      const hasMoreSteps = (isAuto && activeQueue.length > 0) || (!isAuto && nextPlan.length > 1);
+      const generatedFileCount = res.files ? Object.keys(res.files).length : 0;
+      const shouldContinueInitialPlan = !isAuto && nextPlan.length > 1 && generatedFileCount === 0;
+      const hasMoreSteps = (isAuto && activeQueue.length > 0) || shouldContinueInitialPlan;
       
       if (hasMoreSteps) {
         if (autoStepCountRef.current >= 10) {
@@ -386,12 +388,16 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
     setRepairSuccess(false);
     addToast("Self-Healing Node: Analyzing error...", "healing");
 
+    const authProviderHint = runtimeError.message?.toLowerCase().includes('useauth must be used within an authprovider')
+      ? `\nSPECIAL FIX HINT: The app is calling useAuth outside of its provider. Ensure the root tree is wrapped with <AuthProvider> and remove duplicate/nested router/provider setups that bypass context.`
+      : '';
+
     const errorContext = `RUNTIME ERROR DETECTED:
 Message: ${runtimeError.message}
 File: ${runtimeError.source}
 Line: ${runtimeError.line}
 
-INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.`;
+INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}`;
 
     try {
       await handleSend(errorContext, true);

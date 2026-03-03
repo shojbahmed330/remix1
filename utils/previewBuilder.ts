@@ -332,8 +332,8 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       "react-qr-code": "https://esm.sh/react-qr-code@2.0.15",
 
       // ✅ PDF
-      "react-pdf": "https://esm.sh/react-pdf@9.2.1",
-      "@react-pdf/renderer": "https://esm.sh/@react-pdf/renderer@4.1.6",
+      "react-pdf": "https://esm.sh/react-pdf@7.7.3",
+      "@react-pdf/renderer": "https://esm.sh/@react-pdf/renderer@3.4.4",
 
       // ✅ Internationalization
       "i18next": "https://esm.sh/i18next@24.2.2",
@@ -488,27 +488,43 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
 
       if (entryFile) {
         const importSpecifier = '/' + entryFile.replace(/\.(ts|tsx|js|jsx)$/, '');
-        bootstrapScript = `
-          <script type="module">
-            import React from 'react';
-            import { createRoot } from 'react-dom/client';
-            import * as Main from "${importSpecifier}";
-            const init = () => {
-              const rootElement = document.getElementById('root') || document.getElementById('app') || document.body;
-              if (rootElement && rootElement.innerHTML.trim().length < 10) {
-                const App = Main.default || Object.values(Main).find(v => typeof v === 'function' && v.name && v.name[0] === v.name[0].toUpperCase());
-                if (App) {
-                  try {
-                    const root = createRoot(rootElement);
-                    root.render(React.createElement(App));
-                  } catch (e) { console.error('Bootstrap Error:', e); }
+        const entrySourcePath = [
+          `${entryFile}.tsx`,
+          `${entryFile}.ts`,
+          `${entryFile}.jsx`,
+          `${entryFile}.js`,
+          entryFile
+        ].find(candidate => Boolean(projectFiles[candidate]));
+        const entrySourceCode = entrySourcePath ? (projectFiles[entrySourcePath] || '') : '';
+        const entrySelfBootstraps = /createRoot\s*\(/.test(entrySourceCode) || /hydrateRoot\s*\(/.test(entrySourceCode) || /ReactDOM\.render\s*\(/.test(entrySourceCode);
+
+        bootstrapScript = entrySelfBootstraps
+          ? `
+            <script type="module">
+              import "${importSpecifier}";
+            </script>
+          `
+          : `
+            <script type="module">
+              import React from 'react';
+              import { createRoot } from 'react-dom/client';
+              import * as Main from "${importSpecifier}";
+              const init = () => {
+                const rootElement = document.getElementById('root') || document.getElementById('app') || document.body;
+                if (rootElement && rootElement.innerHTML.trim().length < 10) {
+                  const App = Main.default || Object.values(Main).find(v => typeof v === 'function' && v.name && v.name[0] === v.name[0].toUpperCase());
+                  if (App) {
+                    try {
+                      const root = createRoot(rootElement);
+                      root.render(React.createElement(App));
+                    } catch (e) { console.error('Bootstrap Error:', e); }
+                  }
                 }
-              }
-            };
-            if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', init);
-            else init();
-          </script>
-        `;
+              };
+              if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', init);
+              else init();
+            </script>
+          `;
       }
     }
 
