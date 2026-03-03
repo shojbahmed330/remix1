@@ -99,8 +99,10 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
             jsxRuntime: 'automatic',
             production: true
           }).code;
-          const rewritten = rewriteRelativeImports(transpiled, path);
-          
+          const rewrittenImports = rewriteRelativeImports(transpiled, path);
+          const rewritten = rewrittenImports
+            .replace(/\bimport\.meta\.env\b/g, 'window.__STUDIO_ENV__');
+
           const cleanPath = path.replace(/\.(ts|tsx|js|jsx)$/, '');
           transpiledFiles[cleanPath] = rewritten;
           transpiledFiles[path] = rewritten;
@@ -113,6 +115,12 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
 
     // Build Import Map
     const importMap: Record<string, string> = {
+      // ✅ Workspace path aliases (for generated absolute-like imports)
+      "app/": "/app/",
+      "admin/": "/admin/",
+      "src/": "/src/",
+      "@/": "/app/",
+
       // ✅ React Core
       "react": "https://esm.sh/react@19.0.0",
       "react/jsx-runtime": "https://esm.sh/react@19.0.0/jsx-runtime",
@@ -332,8 +340,9 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       "react-qr-code": "https://esm.sh/react-qr-code@2.0.15",
 
       // ✅ PDF
-      "react-pdf": "https://esm.sh/react-pdf@7.7.3",
-      "@react-pdf/renderer": "https://esm.sh/@react-pdf/renderer@3.4.4",
+      "react-pdf": "https://cdn.jsdelivr.net/npm/react-pdf@7.7.3/+esm",
+      "@react-pdf/renderer": "https://cdn.jsdelivr.net/npm/@react-pdf/renderer@3.4.4/+esm",
+      "pdfjs-dist": "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/+esm",
 
       // ✅ Internationalization
       "i18next": "https://esm.sh/i18next@24.2.2",

@@ -10,6 +10,7 @@ export class Validator {
     errors.push(...this.validateFileSizeAndConflicts(filesToValidate));
     // Pass both the files to validate AND the full project context
     errors.push(...this.validateImports(filesToValidate, allFiles));
+    errors.push(...this.validateDefaultImportCompatibility(filesToValidate, allFiles));
     errors.push(...this.validateTypeScriptSyntax(filesToValidate));
     errors.push(...this.detectCircularDependencies(dependencyGraph));
     errors.push(...this.validateReactKeys(filesToValidate));
@@ -47,6 +48,48 @@ export class Validator {
       }
     }
     return errors;
+  }
+
+  public validateDefaultImportCompatibility(filesToValidate: Record<string, string>, allFiles: Record<string, string>): string[] {
+    const errors: string[] = [];
+
+    for (const [path, content] of Object.entries(filesToValidate)) {
+      const defaultImports = this.extractDefaultImports(content);
+
+      for (const imp of defaultImports) {
+        if (!imp.specifier.startsWith('.') && !imp.specifier.startsWith('@/')) continue;
+
+        const resolved = this.resolveImportPath(path, imp.specifier, allFiles);
+        if (!resolved) continue;
+
+        const target = allFiles[resolved];
+        if (!target) continue;
+
+        const hasDefaultExport =
+          /export\s+default\s+/m.test(target) ||
+          /export\s*\{[^}]*\bas\s+default\b[^}]*\}/m.test(target);
+
+        if (!hasDefaultExport) {
+          errors.push(
+            `🚨 CRITICAL ERROR: Default import mismatch in "${path}". You imported "${imp.localName}" as default from "${imp.specifier}", but "${resolved}" has no default export. Use a named import or add \`export default\`.`
+          );
+        }
+      }
+    }
+
+    return errors;
+  }
+
+  public extractDefaultImports(content: string): { localName: string; specifier: string }[] {
+    const matches: { localName: string; specifier: string }[] = [];
+    const regex = /import\s+([A-Za-z_$][\w$]*)\s*(?:,\s*\{[^}]*\}\s*)?from\s+['"]([^'"]+)['"]/g;
+
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(content)) !== null) {
+      matches.push({ localName: match[1], specifier: match[2] });
+    }
+
+    return matches;
   }
 
   public validateTypeScriptSyntax(files: Record<string, string>): string[] {
