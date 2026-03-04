@@ -24,7 +24,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ questions, onComplete, on
 
   const q = questions[currentIdx];
   // Validation: If question text or options are missing, skip this question or show error
-  if (!q || !q.text || !q.options || q.options.length === 0) {
+  if (!q || !q.text || (q.type !== 'supabase_credentials' && (!q.options || q.options.length === 0))) {
     return (
       <div className="w-full bg-[#121214] border border-white/5 rounded-3xl p-8 text-center my-4">
         <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">Invalid Question Data</p>
@@ -56,6 +56,14 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ questions, onComplete, on
       alert("Please select an option to proceed.");
       return;
     }
+    
+    if (q.type === 'supabase_credentials') {
+      const creds = answers[q.id] || {};
+      if (!creds.url || !creds.key) {
+        alert("Please provide both Supabase URL and Anon Key.");
+        return;
+      }
+    }
 
     if (isLast) {
       const formattedAnswers = questions.map(question => {
@@ -64,6 +72,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ questions, onComplete, on
         if (question.type === 'single') {
           const opt = (question.options || []).find(o => o.id === ans);
           text = opt ? opt.label : (ans === 'other' ? `Other: ${otherText}` : 'Not specified');
+        } else if (question.type === 'supabase_credentials') {
+          text = `URL: ${ans?.url}\nKey: ${ans?.key}\n(Please use these as environment variables, e.g. VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Do not hardcode them. Add them to the .env file if necessary.)`;
         } else {
           text = (Array.isArray(ans) ? ans : []).map((id: string) => (question.options || []).find(o => o.id === id)?.label).filter(Boolean).join(', ') || 'None';
         }
@@ -86,13 +96,37 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ questions, onComplete, on
       <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         <div className="flex flex-col gap-2">
           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-            {q.type === 'single' ? 'Pick one option' : 'Multiple choices allowed'}
+            {q.type === 'single' ? 'Pick one option' : q.type === 'supabase_credentials' ? 'Provide Credentials' : 'Multiple choices allowed'}
           </span>
           <div className="text-sm font-black text-white leading-snug tracking-tight">{q.text}</div>
         </div>
 
-        <div className="space-y-2">
-          {(q.options || []).map((opt, i) => {
+        {q.type === 'supabase_credentials' ? (
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Supabase URL</label>
+              <input 
+                type="text" 
+                placeholder="https://your-project.supabase.co"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-500 transition-colors"
+                value={answers[q.id]?.url || ''}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: { ...prev[q.id], url: e.target.value } }))}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Supabase Anon Key</label>
+              <input 
+                type="password" 
+                placeholder="eyJh..."
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-500 transition-colors"
+                value={answers[q.id]?.key || ''}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: { ...prev[q.id], key: e.target.value } }))}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {(q.options || []).map((opt, i) => {
             const isSelected = q.type === 'single' 
               ? answers[q.id] === opt.id 
               : Array.isArray(answers[q.id]) && answers[q.id].includes(opt.id);
@@ -122,6 +156,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ questions, onComplete, on
             );
           })}
         </div>
+        )}
       </div>
 
       <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between px-6 shrink-0">

@@ -314,7 +314,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
         setExecutionQueue(nextPlan.slice(1));
       }
 
-      const validQuestions = (res.questions || []).filter((q: any) => q && q.text && q.options && q.options.length > 0);
+      const validQuestions = (res.questions || []).filter((q: any) => q && q.text && (q.type === 'supabase_credentials' || (q.options && q.options.length > 0)));
 
       const finalAssistantMsg: ChatMessage = { 
         id: assistantId, role: 'assistant', content: res.answer, 

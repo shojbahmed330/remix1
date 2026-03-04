@@ -75,8 +75,8 @@ export interface QuestionOption {
 export interface Question {
   id: string;
   text: string;
-  type: 'single' | 'multiple';
-  options: QuestionOption[];
+  type: 'single' | 'multiple' | 'supabase_credentials';
+  options?: QuestionOption[];
   allowOther?: boolean;
 }
 

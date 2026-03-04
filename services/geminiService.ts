@@ -83,7 +83,7 @@ If creating a NEW file:
 const RESPONSE_FORMAT = `### 🚀 RESPONSE FORMAT (JSON ONLY):
 {
   "thought": "DETAILED DEEP THINKING ANALYSIS (Logic, Strategy, Errors, Sync, UI/UX) in the User's language.",
-  "questions": [], 
+  "questions": [], // If you need Supabase credentials, send a question with type "supabase_credentials".
   "plan": ["Step 1...", "Step 2..."],
   "answer": "Summary of changes.",
   "files": { 

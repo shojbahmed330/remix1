@@ -47,7 +47,7 @@ jobs:
           
           # 2. Stage 1: Copy base files (Root to WWW)
           # We copy all files except folders to the root of www
-          find . -maxdepth 1 -type f -not -name ".*" -exec cp {} www/ \;
+          find . -maxdepth 1 -type f -not -name ".*" -exec cp {} www/ ';'
           
           # 3. Stage 2: Modular Injection (App Folder content to WWW)
           if [ -d "app" ]; then
@@ -63,7 +63,7 @@ jobs:
           # Inject Supabase Config if secrets are present
           if [ ! -z "$SUPABASE_URL" ]; then
             echo "Injecting Database Bridge..."
-            sed -i 's/<head>/<head><script>window.StudioDatabase={url:"'\${SUPABASE_URL}'",key:"'\${SUPABASE_KEY}'"};<\/script>/' www/index.html
+            sed -i 's|<head>|<head><script>window.StudioDatabase={url:"'\${SUPABASE_URL}'",key:"'\${SUPABASE_KEY}'"};</script>|' www/index.html
           fi
 
           # 5. Capacitor Environment Setup
