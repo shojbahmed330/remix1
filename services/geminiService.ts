@@ -16,6 +16,20 @@ Before generating any code, you MUST use the "thought" field to perform a deep a
 4. **DATABASE SYNC:** Explain how the data will stay synchronized between the Mobile App and the Admin Dashboard.
 5. **UI/UX REASONING:** Explain the design choices for both interfaces to ensure they are professional and user-friendly.`;
 
+const FIRST_COMMAND_COMPLETION = `### 🏁 FIRST COMMAND COMPLETION MODE:
+If this is a brand-new app generation request (initial scaffold), deliver an almost fully workable app in the first response:
+1. Build complete core user flows requested by the user (not placeholders).
+2. Include required wiring between UI, state, and services.
+3. Avoid TODO-only stubs unless explicitly requested.
+4. Keep implementation aligned exactly with the user's instruction scope.`;
+
+const STRICT_SCOPE_EDITING = `### 🎯 STRICT CHANGE BOUNDARY (MANDATORY FOR EDITS):
+When editing an existing project:
+1. **FIXING ERRORS (PRIORITY):** If the user is asking to fix an error, you MUST do whatever is necessary to resolve it, even if it requires refactoring or structural changes. The fix takes priority over "minimal changes".
+2. **FEATURE REQUESTS:** Change ONLY what the user explicitly asked for. Do NOT do extra refactors, styling tweaks, or optimizations unless requested.
+3. **NO UNRELATED CHANGES:** Do NOT add new features, dependencies, or architectural changes that were not requested.
+4. **STYLE PRESERVATION:** Always respect the existing UI and design unless the request is specifically to change it.`;
+
 const UNIT_TESTING = `### 🧪 UNIT TESTING PROTOCOL (MANDATORY):
 For any complex logic, services, or utility functions:
 1. **TEST GENERATION:** You MUST create a \`tests/\` directory INSIDE the workspace (e.g., \`app/tests/\` or \`admin/tests/\`) and write unit tests using a simple assertion pattern (e.g., \`if (result !== expected) throw new Error(...)\`).
@@ -29,9 +43,11 @@ You MUST track and respect the relationship between files:
 3. **IMPORT CHECK:** Always verify that imports are correct and the file exists in the PROJECT MAP.`;
 
 const SURGICAL_EDITING = `### ✂️ SURGICAL EDITING & MIGRATION (STRICT):
-1. **MINIMAL CHANGES:** Only change the specific lines required.
-2. **DATABASE MIGRATIONS:** If the database schema changes, do NOT overwrite \`database.sql\`. Instead, create a new file \`migrations/YYYYMMDD_description.sql\`.
-3. **NO DELETIONS:** Never delete existing features unless explicitly asked.`;
+1. **MINIMAL CHANGES:** For feature requests, only change the specific lines required. For error fixes, apply the most robust solution.
+2. **REACT HOOKS (CRITICAL):** Ensure hooks are ONLY called inside functional components or custom hooks. NEVER render a component by calling it as a function (e.g., use \`<Component />\`, NOT \`Component()\`).
+3. **STYLE PRESERVATION:** You MUST respect the existing UI, layout, and design of the file you are editing. DO NOT change colors, spacing, or fonts unless explicitly asked.
+4. **DATABASE MIGRATIONS:** If the database schema changes, do NOT overwrite \`database.sql\`. Instead, create a new file \`migrations/YYYYMMDD_description.sql\`.
+5. **NO DELETIONS:** Never delete existing features or styles unless explicitly asked.`;
 
 const MANDATORY_RULES = `### 🛠 MANDATORY RULES:
 1. **MANDATORY TYPESCRIPT ENFORCEMENT (CRITICAL):**
@@ -59,10 +75,12 @@ const MANDATORY_RULES = `### 🛠 MANDATORY RULES:
    - **Admin Dashboard:** \`admin/\`.
    - **Root:** ONLY \`database.sql\`, \`migrations/\`, \`package.json\`, \`README.md\`.`;
 
-const DESIGN_SYSTEM = `### 🎨 MANDATORY DESIGN SYSTEM (STRICT):
-1. **COLOR PALETTE:** Primary: Emerald (#10b981), Secondary: Slate (#64748b), Background: White/Stone-50, Text: Zinc-900/600.
-2. **SPACING & RADIUS:** Use Tailwind scale. \`rounded-xl\` for cards/buttons, \`rounded-2xl\` for containers.
-3. **TYPOGRAPHY:** Inter font. Headings: semibold, tracking-tight. Body: normal, leading-relaxed.`;
+const DESIGN_SYSTEM = `### 🎨 DESIGN SYSTEM GUIDELINES:
+1. **NEW COMPONENTS ONLY:** The following design rules apply ONLY to entirely new components.
+2. **EXISTING FILES:** When editing existing files, ALWAYS match the current style of the project.
+3. **DEFAULT PALETTE (IF NEW):** Primary: Emerald (#10b981), Secondary: Slate (#64748b), Background: White/Stone-50, Text: Zinc-900/600.
+4. **SPACING & RADIUS:** Use Tailwind scale. \`rounded-xl\` for cards/buttons, \`rounded-2xl\` for containers.
+5. **TYPOGRAPHY:** Inter font. Headings: semibold, tracking-tight. Body: normal, leading-relaxed.`;
 
 const PATCH_MODE_RULE = `### 🔧 PATCH MODE (WHEN EDITING EXISTING FILES):
 If the file already exists in the PROJECT MAP:
@@ -268,22 +286,22 @@ export class GeminiService implements AIProvider {
     let systemInstruction = '';
     switch (phase) {
       case 'planning': 
-        systemInstruction = `${BASE_ROLE}\n\n${DEEP_THINKING}\n\n${DEPENDENCY_GRAPH}\n\n${MANDATORY_RULES}\n\n${PLANNING_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${DEEP_THINKING}\n\n${FIRST_COMMAND_COMPLETION}\n\n${STRICT_SCOPE_EDITING}\n\n${DEPENDENCY_GRAPH}\n\n${MANDATORY_RULES}\n\n${PLANNING_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
       case 'coding': 
-        systemInstruction = `${BASE_ROLE}\n\n${DEEP_THINKING}\n\n${UNIT_TESTING}\n\n${DEPENDENCY_GRAPH}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${MANDATORY_RULES}\n\n${DESIGN_SYSTEM}\n\n${CODING_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${DEEP_THINKING}\n\n${FIRST_COMMAND_COMPLETION}\n\n${STRICT_SCOPE_EDITING}\n\n${UNIT_TESTING}\n\n${DEPENDENCY_GRAPH}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${MANDATORY_RULES}\n\n${DESIGN_SYSTEM}\n\n${CODING_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
       case 'review': 
-        systemInstruction = `${BASE_ROLE}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${REVIEW_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${STRICT_SCOPE_EDITING}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${REVIEW_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
       case 'security': 
-        systemInstruction = `${BASE_ROLE}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${OPTIMIZATION_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${STRICT_SCOPE_EDITING}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${OPTIMIZATION_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
       case 'performance': 
-        systemInstruction = `${BASE_ROLE}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${PERFORMANCE_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${STRICT_SCOPE_EDITING}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${PERFORMANCE_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
       case 'uiux': 
-        systemInstruction = `${BASE_ROLE}\n\n${DESIGN_SYSTEM}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${UI_UX_PROMPT}\n\n${RESPONSE_FORMAT}`; 
+        systemInstruction = `${BASE_ROLE}\n\n${STRICT_SCOPE_EDITING}\n\n${DESIGN_SYSTEM}\n\n${SURGICAL_EDITING}\n\n${PATCH_MODE_RULE}\n\n${UI_UX_PROMPT}\n\n${RESPONSE_FORMAT}`; 
         break;
     }
 

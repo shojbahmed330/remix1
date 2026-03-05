@@ -19,11 +19,12 @@ export class Orchestrator {
     phase: 'planning' | 'coding' | 'review' | 'security' | 'performance' | 'uiux',
     input: string,
     modelName: string,
-    phaseCache: LRUCache<string, any>
+    phaseCache: LRUCache<string, any>,
+    skipCache: boolean = false
   ): Promise<any> {
     const inputHash = this.diffEngine.hashContent(input);
     const phaseKey = `${phase}-${inputHash}`;
-    if (phaseCache.has(phaseKey)) {
+    if (!skipCache && phaseCache.has(phaseKey)) {
       Logger.info(`Cache hit for phase: ${phase}`, { component: 'Orchestrator', phase });
       return phaseCache.get(phaseKey);
     }
@@ -62,12 +63,6 @@ export class Orchestrator {
       phases = ["performance", "uiux"];
     }
 
-    const dbChanged = changedFiles.some(f => f.includes("database") || f.includes("schema") || f.includes("migration"));
-    const uiChanged = changedFiles.some(f => f.includes("components") || f.includes("pages") || f.includes("views") || f.endsWith(".css"));
-
-    if (dbChanged && !phases.includes("security")) phases.push("security");
-    if (uiChanged && !phases.includes("uiux")) phases.push("uiux");
-
     return [...new Set(phases)];
   }
 
@@ -78,16 +73,7 @@ export class Orchestrator {
     dependencyGraph: DependencyNode[],
     activeWorkspace?: any
   ): string {
-    // Detect simple tools to prevent over-engineering
-    const simpleTools = ['calculator', 'timer', 'stopwatch', 'todo', 'to-do', 'counter', 'weather', 'clock', 'converter', 'generator'];
-    const isSimpleTool = simpleTools.some(tool => prompt.toLowerCase().includes(tool));
-    
-    let architectureInstruction = "";
-    if (isSimpleTool && !prompt.toLowerCase().includes('database') && !prompt.toLowerCase().includes('backend')) {
-      architectureInstruction = "\n\nARCHITECTURAL CONSTRAINT: This is a SIMPLE CLIENT-SIDE TOOL. Do NOT create a database schema, backend API, or authentication system unless explicitly requested. Use React state and local storage only. Keep it simple and contained in minimal files.";
-    }
-
-    return `PHASE: ${phase.toUpperCase()}\nUSER REQUEST: ${prompt}${architectureInstruction}\n\nCONTEXT:\n${this.buildContext(files, dependencyGraph, prompt)}`;
+    return `PHASE: ${phase.toUpperCase()}\nUSER REQUEST: ${prompt}\n\nCONTEXT:\n${this.buildContext(files, dependencyGraph, prompt)}`;
   }
 
   public buildContext(files: Record<string, string>, dependencyGraph: DependencyNode[], prompt?: string): string {

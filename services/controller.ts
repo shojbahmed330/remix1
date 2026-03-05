@@ -79,6 +79,7 @@ export class AIController {
     if (
       originalPromptHash === this.memory.lastPromptHash &&
       mode === this.memory.lastMode &&
+      mode !== GenerationMode.FIX &&
       this.memory.lastResult
     ) {
       Logger.info("No changes detected. Returning cached result.", logContext);
@@ -149,23 +150,19 @@ export class AIController {
         const isPatchMode = false; // Disabled: Always use full files for reliability
         let patchInstruction = "\nFULL FILE MODE:\nAlways return the COMPLETE file content for any file you create or modify.\nDO NOT use patches, diffs, or partial snippets.\nDO NOT start the file with '--- filename' or any diff headers. Just return the raw code.\n";
 
-        const impactedFiles = this.orchestrator.analyzeImpact(currentPrompt, this.dependencyGraph);
-        const impactInstruction = impactedFiles.length > 0
-          ? `\n\n🚨 STRUCTURAL IMPACT DETECTED:\nThe following files are structurally dependent and MUST be reviewed/updated to prevent breaking changes:\n${impactedFiles.map(f => `- ${f}`).join('\n')}\n\nYou MUST include updates for these files in your plan steps.`
-          : "";
-        const enforceInstruction = impactedFiles.length > 0
-          ? `\n\n🚨 MANDATORY UPDATE REQUIREMENT:\nYou MUST update these files as part of this change:\n${impactedFiles.map(f => `- ${f}`).join('\n')}\n\nReturn patches or full files for each.`
-          : "";
+        const strictEditBoundaryInstruction = mode === GenerationMode.SCAFFOLD
+          ? ""
+          : "\n\n🎯 STRICT CHANGE BOUNDARY:\nImplement ONLY what the user explicitly requested.\nDo not add extra improvements, refactors, style tweaks, or unrelated fixes.";
 
-        const phases = this.orchestrator.decidePhases(mode, impactedFiles);
+        const phases = this.orchestrator.decidePhases(mode, []);
         Logger.info(`Running phases: ${phases.join(', ')}`, logContext);
 
         // Phase 1: Planning
         if (phases.includes("planning")) {
           yield { type: 'status', phase: 'PLANNING', message: "Planning architecture..." };
-          const planningPrompt = currentPrompt + impactInstruction;
+          const planningPrompt = currentPrompt + strictEditBoundaryInstruction;
           const input = this.orchestrator.buildPhaseInput('planning', planningPrompt, currentContextFiles, this.dependencyGraph, activeWorkspace);
-          const plan = await this.orchestrator.executePhaseWithCache('planning', input, modelName, this.memory.phaseCache);
+          const plan = await this.orchestrator.executePhaseWithCache('planning', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[PLAN]: ${plan.thought || 'Planned architecture.'}`);
           finalPlan = plan.plan || [];
 
@@ -180,11 +177,11 @@ export class AIController {
         // Phase 2: Coding (Developer)
         if (phases.includes("coding")) {
           yield { type: 'status', phase: 'CODING', message: "Generating code..." };
-          const codingPrompt = currentPrompt + enforceInstruction;
+          const codingPrompt = currentPrompt + strictEditBoundaryInstruction;
           const input = mode === GenerationMode.SCAFFOLD 
             ? `PLAN:\n${JSON.stringify(finalPlan)}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
             : `USER REQUEST:\n${codingPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
-          const code = await this.orchestrator.executePhaseWithCache('coding', input, modelName, this.memory.phaseCache);
+          const code = await this.orchestrator.executePhaseWithCache('coding', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[CODE]: ${code.thought || 'Implemented code.'}`);
           if (code.answer) finalAnswer = code.answer;
           applyAndValidateGeneratedFiles(code.files || {});
@@ -193,11 +190,11 @@ export class AIController {
         // Phase 3: Review
         if (phases.includes("review")) {
           yield { type: 'status', phase: 'REVIEW', message: "Reviewing implementation..." };
-          const reviewPrompt = currentPrompt + enforceInstruction;
+          const reviewPrompt = currentPrompt + strictEditBoundaryInstruction;
           const input = mode === GenerationMode.FIX
             ? `USER REQUEST (FIX ERROR):\n${reviewPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
             : `GENERATED FILES:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
-          const review = await this.orchestrator.executePhaseWithCache('review', input, modelName, this.memory.phaseCache);
+          const review = await this.orchestrator.executePhaseWithCache('review', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[REVIEW]: ${review.thought || 'Reviewed code.'}`);
           if (mode === GenerationMode.FIX && review.answer) finalAnswer = review.answer;
           applyAndValidateGeneratedFiles(review.files || {});
@@ -209,7 +206,7 @@ export class AIController {
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE SECURITY):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
             : `FILES TO SECURE:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
-          const security = await this.orchestrator.executePhaseWithCache('security', input, modelName, this.memory.phaseCache);
+          const security = await this.orchestrator.executePhaseWithCache('security', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[SECURITY]: ${security.thought || 'Security audit complete.'}`);
           if (mode === GenerationMode.OPTIMIZE && security.answer) finalAnswer = security.answer;
           applyAndValidateGeneratedFiles(security.files || {});
@@ -221,7 +218,7 @@ export class AIController {
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE PERFORMANCE):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
             : `FILES TO AUDIT:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
-          const perf = await this.orchestrator.executePhaseWithCache('performance', input, modelName, this.memory.phaseCache);
+          const perf = await this.orchestrator.executePhaseWithCache('performance', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[PERF]: ${perf.thought || 'Performance audit complete.'}`);
           applyAndValidateGeneratedFiles(perf.files || {});
         }
@@ -232,7 +229,7 @@ export class AIController {
           const input = mode === GenerationMode.OPTIMIZE
             ? `USER REQUEST (OPTIMIZE UI/UX):\n${currentPrompt}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`
             : `FILES TO POLISH:\n${JSON.stringify(generatedFilesThisAttempt)}${patchInstruction}\n\nCONTEXT:\n${this.orchestrator.buildContext(currentContextFiles, this.dependencyGraph, currentPrompt)}`;
-          const uiux = await this.orchestrator.executePhaseWithCache('uiux', input, modelName, this.memory.phaseCache);
+          const uiux = await this.orchestrator.executePhaseWithCache('uiux', input, modelName, this.memory.phaseCache, mode === GenerationMode.FIX);
           thoughts.push(`[UIUX]: ${uiux.thought || 'UI/UX polish complete.'}`);
           if (mode === GenerationMode.OPTIMIZE && uiux.answer) finalAnswer = uiux.answer;
           applyAndValidateGeneratedFiles(uiux.files || {});
