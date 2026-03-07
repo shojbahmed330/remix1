@@ -14,6 +14,7 @@ export class Validator {
     errors.push(...this.validateTypeScriptSyntax(filesToValidate));
     errors.push(...this.detectCircularDependencies(dependencyGraph));
     errors.push(...this.validateReactKeys(filesToValidate));
+    errors.push(...this.validateForbiddenPatterns(filesToValidate));
     return errors;
   }
 
@@ -230,6 +231,42 @@ export class Validator {
       let match;
       while ((match = regex.exec(content)) !== null) {
         errors.push(`React Key Error in ${fileName}: List rendered without a unique 'key' prop. Ensure all mapped elements have a 'key'.`);
+      }
+    }
+    return errors;
+  }
+
+  public validateForbiddenPatterns(files: Record<string, string>): string[] {
+    const errors: string[] = [];
+    const safeBuiltins = new Set(['Date', 'String', 'Number', 'Boolean', 'Array', 'Object', 'RegExp', 'Error', 'Promise', 'Symbol', 'Map', 'Set', 'URL', 'FormData', 'Intl', 'Math', 'JSON', 'Console', 'Blob', 'File', 'Headers', 'Request', 'Response', 'URLSearchParams', 'WebSocket', 'Worker', 'Image', 'Audio', 'Video', 'CanvasGradient', 'CanvasPattern', 'CanvasRenderingContext2D', 'MutationObserver', 'IntersectionObserver', 'ResizeObserver', 'Performance', 'Notification', 'Storage', 'IDBKeyRange', 'IDBRequest', 'IDBTransaction', 'IDBDatabase', 'IDBObjectStore', 'IDBIndex', 'IDBCursor', 'IDBCursorWithValue', 'IDBFactory', 'Event', 'CustomEvent', 'MessageEvent', 'CloseEvent', 'ErrorEvent', 'ProgressEvent', 'UIEvent', 'MouseEvent', 'KeyboardEvent', 'FocusEvent', 'WheelEvent', 'PointerEvent', 'TouchEvent', 'CompositionEvent', 'InputEvent', 'AnimationEvent', 'TransitionEvent', 'ClipboardEvent', 'DragEvent', 'HashChangeEvent', 'PageTransitionEvent', 'PopStateEvent', 'StorageEvent', 'DeviceOrientationEvent', 'DeviceMotionEvent', 'GamepadEvent', 'BeforeUnloadEvent', 'SecurityPolicyViolationEvent', 'PromiseRejectionEvent', 'MediaQueryListEvent', 'OfflineAudioCompletionEvent', 'AudioProcessingEvent', 'RTCPeerConnectionIceEvent', 'RTCTrackEvent', 'RTCDataChannelEvent', 'RTCPeerConnectionIceErrorEvent', 'RTCCertificate', 'RTCSessionDescription', 'RTCIceCandidate', 'RTCIceServer', 'RTCIceTransport', 'RTCDtlsTransport', 'RTCSctpTransport', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver', 'RTCRtpContributionSource', 'RTCRtpReceiveParameters', 'RTCRtpSendParameters', 'RTCRtpCodecParameters', 'RTCRtpHeaderExtensionParameters', 'RTCRtpCodecCapability', 'RTCRtpHeaderExtensionCapability', 'RTCRtpCapabilities', 'RTCIceParameters', 'RTCIceCandidatePair', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'Uint8Array', 'Uint16Array', 'Uint32Array', 'Int8Array', 'Int16Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'DataView', 'ArrayBuffer', 'SharedArrayBuffer']);
+
+    for (const [fileName, content] of Object.entries(files)) {
+      if (!fileName.endsWith('.tsx') && !fileName.endsWith('.jsx') && !fileName.endsWith('.ts') && !fileName.endsWith('.js')) continue;
+
+      // 1. Detect component calls as functions: ComponentName() or {ComponentName()}
+      if (fileName.endsWith('.tsx') || fileName.endsWith('.jsx')) {
+        // Match Uppercase followed by ( but NOT preceded by 'new ' or '.' (to avoid method calls like Math.Max)
+        // Also exclude safe builtins
+        const componentCallRegex = /(?<!new\s|(?<![a-zA-Z0-9_$])\.)\b([A-Z][a-zA-Z0-9]*)\s*\(/g;
+        let match;
+        while ((match = componentCallRegex.exec(content)) !== null) {
+          const name = match[1];
+          if (safeBuiltins.has(name)) continue;
+          
+          // Check if it's likely a component call vs a legitimate function call
+          // In React, Uppercase functions are components.
+          errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are calling React component "${name}" as a function: ${name}(). ALWAYS use JSX syntax: <${name} />. Calling components as functions causes "Cannot read properties of null (reading 'useContext')" errors.`);
+        }
+      }
+
+      // 2. Detect dynamic require
+      if (!fileName.includes('tailwind.config.js') && content.match(/\brequire\s*\(/) && !content.includes('createRequire')) {
+        errors.push(`🚨 CRITICAL ERROR in ${fileName}: Dynamic "require()" is not supported in Vite. You MUST use ESM "import" syntax. Example: import { something } from 'package';`);
+      }
+
+      // 3. Detect process.env usage (should use import.meta.env in Vite)
+      if (content.includes('process.env.') && !content.includes('process.env.GEMINI_API_KEY') && !content.includes('process.env.API_KEY') && !fileName.includes('vite.config.ts') && !fileName.includes('server.ts')) {
+        errors.push(`🚨 WARNING in ${fileName}: You are using "process.env". In Vite, you should use "import.meta.env.VITE_VARIABLE_NAME" for client-side environment variables.`);
       }
     }
     return errors;

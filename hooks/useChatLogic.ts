@@ -392,12 +392,16 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       ? `\nSPECIAL FIX HINT: The app is calling useAuth outside of its provider. Ensure the root tree is wrapped with <AuthProvider> and remove duplicate/nested router/provider setups that bypass context.`
       : '';
 
+    const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')")
+      ? `\nSPECIAL FIX HINT: This error usually happens when a React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (e.g., <MyComponent />). Check the file ${runtimeError.source} for any such calls and fix them.`
+      : '';
+
     const errorContext = `RUNTIME ERROR DETECTED:
 Message: ${runtimeError.message}
 File: ${runtimeError.source}
 Line: ${runtimeError.line}
 
-INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}`;
+INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}${useContextHint}`;
 
     try {
       await handleSend(errorContext, true);
