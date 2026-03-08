@@ -100,7 +100,7 @@ const MANDATORY_RULES = `### 🛠 MANDATORY RULES:
 const DESIGN_SYSTEM = `### 🎨 DESIGN SYSTEM GUIDELINES:
 1. **NEW COMPONENTS ONLY:** The following design rules apply ONLY to entirely new components.
 2. **EXISTING FILES:** When editing existing files, ALWAYS match the current style of the project.
-3. **DEFAULT PALETTE (IF NEW):** Primary: Emerald (#10b981), Secondary: Slate (#64748b), Background: White/Stone-50, Text: Zinc-900/600.
+3. **DEFAULT PALETTE:** Use neutral and modern colors (e.g., Blue, Indigo, or Violet as primary) unless the user specifies a brand color.
 4. **SPACING & RADIUS:** Use Tailwind scale. \`rounded-xl\` for cards/buttons, \`rounded-2xl\` for containers.
 5. **TYPOGRAPHY:** Inter font. Headings: semibold, tracking-tight. Body: normal, leading-relaxed.`;
 
@@ -301,7 +301,7 @@ export class GeminiService implements AIProvider {
   async callPhase(
     phase: 'planning' | 'coding' | 'review' | 'security' | 'performance' | 'uiux',
     input: string,
-    modelName: string = 'gemini-3-flash-preview',
+    modelName: string = 'gemini-3-pro-preview',
     retries: number = 3
   ): Promise<any> {
     // ... (systemInstruction setup remains same)

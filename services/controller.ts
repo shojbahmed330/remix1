@@ -53,7 +53,7 @@ export class AIController {
     currentFiles: Record<string, string>,
     history: ChatMessage[] = [],
     activeWorkspace?: WorkspaceType | boolean,
-    modelName: string = 'gemini-3-flash-preview'
+    modelName: string = 'gemini-3-pro-preview'
   ): AsyncIterable<any> {
     const correlationId = crypto.randomUUID();
     const logContext = { component: 'AIController', correlationId, modelName };
@@ -343,7 +343,7 @@ export class AIController {
     currentFiles: Record<string, string>,
     history: ChatMessage[] = [],
     activeWorkspace?: WorkspaceType | boolean,
-    modelName: string = 'gemini-3-flash-preview'
+    modelName: string = 'gemini-3-pro-preview'
   ): AsyncIterable<string> {
     try {
       const generator = this.processRequest(prompt, currentFiles, history, activeWorkspace, modelName);

@@ -44,7 +44,7 @@ export const useProjectManager = (user: UserType | null, addToast: (msg: string,
   const [projectConfig, setProjectConfig] = useState<ProjectConfig>({ 
     appName: 'OneClickApp', 
     packageName: 'com.oneclick.studio',
-    selected_model: 'gemini-3-flash-preview'
+    selected_model: 'gemini-3-pro-preview'
   });
   const [selectedFile, setSelectedFile] = useState('app/index.html');
   const [openTabs, setOpenTabs] = useState<string[]>(['app/index.html']);
@@ -167,7 +167,7 @@ export const useProjectManager = (user: UserType | null, addToast: (msg: string,
     localStorage.setItem('active_project_id', project.id);
     setProjectFiles(project.files || {});
     projectFilesRef.current = project.files || {};
-    setProjectConfig(project.config || { appName: 'OneClickApp', packageName: 'com.oneclick.studio', selected_model: 'gemini-3-flash-preview' });
+    setProjectConfig(project.config || { appName: 'OneClickApp', packageName: 'com.oneclick.studio', selected_model: 'gemini-3-pro-preview' });
     const keys = Object.keys(project.files || {});
     if (keys.length > 0) { 
       setSelectedFile(keys[0]); 

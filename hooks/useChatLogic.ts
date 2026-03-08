@@ -194,7 +194,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
     }
 
     const activeQueue = overrideQueue !== undefined ? overrideQueue : executionQueue;
-    const currentModel = projectConfig.selected_model || 'gemini-3-flash-preview';
+    const currentModel = projectConfig.selected_model || 'gemini-3-pro-preview';
 
     if (waitingForApproval && !isAuto) {
       const lowerInput = promptText.toLowerCase();
@@ -434,7 +434,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       : '';
 
     const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')")
-      ? `\nSPECIAL FIX HINT: This error usually happens when a React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (e.g., <MyComponent />). Check the file ${runtimeError.source} for any such calls and fix them. NEVER call components as functions.`
+      ? `\nSPECIAL FIX HINT: This error usually happens for 3 reasons: 1) A React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (<MyComponent />). 2) A hook is called outside of a component or not at the top level. 3) A Context Provider is missing from the tree. Check the file ${runtimeError.source} and fix these issues. NEVER call components as functions.`
       : '';
 
     const useRefHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'useref')")

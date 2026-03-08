@@ -238,7 +238,7 @@ export class Validator {
 
   public validateForbiddenPatterns(files: Record<string, string>): string[] {
     const errors: string[] = [];
-    const safeBuiltins = new Set(['Date', 'String', 'Number', 'Boolean', 'Array', 'Object', 'RegExp', 'Error', 'Promise', 'Symbol', 'Map', 'Set', 'URL', 'FormData', 'Intl', 'Math', 'JSON', 'Console', 'Blob', 'File', 'Headers', 'Request', 'Response', 'URLSearchParams', 'WebSocket', 'Worker', 'Image', 'Audio', 'Video', 'CanvasGradient', 'CanvasPattern', 'CanvasRenderingContext2D', 'MutationObserver', 'IntersectionObserver', 'ResizeObserver', 'Performance', 'Notification', 'Storage', 'IDBKeyRange', 'IDBRequest', 'IDBTransaction', 'IDBDatabase', 'IDBObjectStore', 'IDBIndex', 'IDBCursor', 'IDBCursorWithValue', 'IDBFactory', 'Event', 'CustomEvent', 'MessageEvent', 'CloseEvent', 'ErrorEvent', 'ProgressEvent', 'UIEvent', 'MouseEvent', 'KeyboardEvent', 'FocusEvent', 'WheelEvent', 'PointerEvent', 'TouchEvent', 'CompositionEvent', 'InputEvent', 'AnimationEvent', 'TransitionEvent', 'ClipboardEvent', 'DragEvent', 'HashChangeEvent', 'PageTransitionEvent', 'PopStateEvent', 'StorageEvent', 'DeviceOrientationEvent', 'DeviceMotionEvent', 'GamepadEvent', 'BeforeUnloadEvent', 'SecurityPolicyViolationEvent', 'PromiseRejectionEvent', 'MediaQueryListEvent', 'OfflineAudioCompletionEvent', 'AudioProcessingEvent', 'RTCPeerConnectionIceEvent', 'RTCTrackEvent', 'RTCDataChannelEvent', 'RTCPeerConnectionIceErrorEvent', 'RTCCertificate', 'RTCSessionDescription', 'RTCIceCandidate', 'RTCIceServer', 'RTCIceTransport', 'RTCDtlsTransport', 'RTCSctpTransport', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver', 'RTCRtpContributionSource', 'RTCRtpReceiveParameters', 'RTCRtpSendParameters', 'RTCRtpCodecParameters', 'RTCRtpHeaderExtensionParameters', 'RTCRtpCodecCapability', 'RTCRtpHeaderExtensionCapability', 'RTCRtpCapabilities', 'RTCIceParameters', 'RTCIceCandidatePair', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'Uint8Array', 'Uint16Array', 'Uint32Array', 'Int8Array', 'Int16Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'DataView', 'ArrayBuffer', 'SharedArrayBuffer']);
+    const safeBuiltins = new Set(['Date', 'String', 'Number', 'Boolean', 'Array', 'Object', 'RegExp', 'Error', 'Promise', 'Symbol', 'Map', 'Set', 'URL', 'FormData', 'Intl', 'Math', 'JSON', 'Console', 'Blob', 'File', 'Headers', 'Request', 'Response', 'URLSearchParams', 'WebSocket', 'Worker', 'Image', 'Audio', 'Video', 'CanvasGradient', 'CanvasPattern', 'CanvasRenderingContext2D', 'MutationObserver', 'IntersectionObserver', 'ResizeObserver', 'Performance', 'Notification', 'Storage', 'IDBKeyRange', 'IDBRequest', 'IDBTransaction', 'IDBDatabase', 'IDBObjectStore', 'IDBIndex', 'IDBCursor', 'IDBCursorWithValue', 'IDBFactory', 'Event', 'CustomEvent', 'MessageEvent', 'CloseEvent', 'ErrorEvent', 'ProgressEvent', 'UIEvent', 'MouseEvent', 'KeyboardEvent', 'FocusEvent', 'WheelEvent', 'PointerEvent', 'TouchEvent', 'CompositionEvent', 'InputEvent', 'AnimationEvent', 'TransitionEvent', 'ClipboardEvent', 'DragEvent', 'HashChangeEvent', 'PageTransitionEvent', 'PopStateEvent', 'StorageEvent', 'DeviceOrientationEvent', 'DeviceMotionEvent', 'GamepadEvent', 'BeforeUnloadEvent', 'SecurityPolicyViolationEvent', 'PromiseRejectionEvent', 'MediaQueryListEvent', 'OfflineAudioCompletionEvent', 'AudioProcessingEvent', 'RTCPeerConnectionIceEvent', 'RTCTrackEvent', 'RTCDataChannelEvent', 'RTCPeerConnectionIceErrorEvent', 'RTCCertificate', 'RTCSessionDescription', 'RTCIceCandidate', 'RTCIceServer', 'RTCIceTransport', 'RTCDtlsTransport', 'RTCSctpTransport', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver', 'RTCRtpContributionSource', 'RTCRtpReceiveParameters', 'RTCRtpSendParameters', 'RTCRtpCodecParameters', 'RTCRtpHeaderExtensionParameters', 'RTCRtpCodecCapability', 'RTCRtpHeaderExtensionCapability', 'RTCRtpCapabilities', 'RTCIceParameters', 'RTCIceCandidatePair', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'RTCIceCandidateStats', 'RTCIceCandidatePairStats', 'RTCIceTransportStats', 'RTCOutboundRtpStreamStats', 'RTCInboundRtpStreamStats', 'RTCRemoteOutboundRtpStreamStats', 'RTCRemoteInboundRtpStreamStats', 'RTCAudioSourceStats', 'RTCVideoSourceStats', 'RTCTransportStats', 'RTCPeerConnectionStats', 'RTCCodecStats', 'RTCMediaStreamStats', 'RTCMediaStreamTrackStats', 'RTCDataChannelStats', 'RTCCertificateStats', 'RTCIceServerStats', 'Uint8Array', 'Uint16Array', 'Uint32Array', 'Int8Array', 'Int16Array', 'Int32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array', 'DataView', 'ArrayBuffer', 'SharedArrayBuffer', 'BigInt', 'UTC', 'DateTimeFormat', 'NumberFormat']);
 
     for (const [fileName, content] of Object.entries(files)) {
       if (!fileName.endsWith('.tsx') && !fileName.endsWith('.jsx') && !fileName.endsWith('.ts') && !fileName.endsWith('.js')) continue;
@@ -255,12 +255,33 @@ export class Validator {
           );
 
           const visit = (node: ts.Node) => {
-            if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-              const name = node.expression.text;
-              const startsUppercase = /^[A-Z]/.test(name);
+            if (ts.isCallExpression(node)) {
+              let isComponentCall = false;
+              let name = "Component";
 
-              if (startsUppercase && !safeBuiltins.has(name)) {
-                errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are calling React component "${name}" as a function: ${name}(). ALWAYS use JSX syntax: <${name} />. Calling components as functions causes "Cannot read properties of null (reading 'useContext')" errors.`);
+              if (ts.isIdentifier(node.expression)) {
+                name = node.expression.text;
+                const startsUppercase = /^[A-Z]/.test(name);
+                if (startsUppercase && !safeBuiltins.has(name)) {
+                  isComponentCall = true;
+                }
+              } else if (ts.isPropertyAccessExpression(node.expression)) {
+                name = node.expression.name.text;
+                const startsUppercase = /^[A-Z]/.test(name);
+                if (startsUppercase && !safeBuiltins.has(name)) {
+                  isComponentCall = true;
+                }
+              } else if (ts.isElementAccessExpression(node.expression)) {
+                // e.g., LucideIcons[name]()
+                const expText = node.expression.expression.getText(sourceFile);
+                if (expText.toLowerCase().includes('icon') || expText === 'LucideIcons') {
+                  isComponentCall = true;
+                  name = `${expText}[...]`;
+                }
+              }
+
+              if (isComponentCall) {
+                errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are calling React component "${name}" as a function: ${name}(). ALWAYS use JSX syntax: <${name} /> (or if dynamic: const Comp = ${name}; <Comp />). Calling components as functions causes "Cannot read properties of null (reading 'useContext')" errors.`);
               }
             }
 
