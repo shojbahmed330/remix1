@@ -245,17 +245,31 @@ export class Validator {
 
       // 1. Detect component calls as functions: ComponentName() or {ComponentName()}
       if (fileName.endsWith('.tsx') || fileName.endsWith('.jsx')) {
-        // Match Uppercase followed by ( but NOT preceded by 'new ' or '.' (to avoid method calls like Math.Max)
-        // Also exclude safe builtins
-        const componentCallRegex = /(?<!new\s|(?<![a-zA-Z0-9_$])\.)\b([A-Z][a-zA-Z0-9]*)\s*\(/g;
-        let match;
-        while ((match = componentCallRegex.exec(content)) !== null) {
-          const name = match[1];
-          if (safeBuiltins.has(name)) continue;
-          
-          // Check if it's likely a component call vs a legitimate function call
-          // In React, Uppercase functions are components.
-          errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are calling React component "${name}" as a function: ${name}(). ALWAYS use JSX syntax: <${name} />. Calling components as functions causes "Cannot read properties of null (reading 'useContext')" errors.`);
+        try {
+          const sourceFile = ts.createSourceFile(
+            fileName,
+            content,
+            ts.ScriptTarget.ESNext,
+            true,
+            fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.JSX
+          );
+
+          const visit = (node: ts.Node) => {
+            if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+              const name = node.expression.text;
+              const startsUppercase = /^[A-Z]/.test(name);
+
+              if (startsUppercase && !safeBuiltins.has(name)) {
+                errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are calling React component "${name}" as a function: ${name}(). ALWAYS use JSX syntax: <${name} />. Calling components as functions causes "Cannot read properties of null (reading 'useContext')" errors.`);
+              }
+            }
+
+            ts.forEachChild(node, visit);
+          };
+
+          visit(sourceFile);
+        } catch (_e) {
+          // If parser fails, skip this specific heuristic to avoid noisy false positives.
         }
       }
 
