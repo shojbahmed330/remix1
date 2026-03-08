@@ -17,7 +17,22 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat');
   const lastRuntimeErrorRef = useRef<{ key: string; timestamp: number } | null>(null);
   const autoFixAttemptsRef = useRef<Map<string, number>>(new Map());
+  const lastAutoFixAtRef = useRef(0);
   const toastCounterRef = useRef(0);
+
+  const normalizeRuntimeErrorKey = useCallback((error: any): string => {
+    const source = error?.source || 'unknown';
+    const rawMessage = String(error?.message || 'Unknown error');
+
+    // Normalize noisy values (line numbers, quoted variable names, stack fragments)
+    // so repeated root-cause errors map to the same key.
+    const normalizedMessage = rawMessage
+      .replace(/\(reading\s+'[^']+'\)/gi, '(reading <property>)')
+      .replace(/\b\d+\b/g, '<n>')
+      .trim();
+
+    return `${source}|${normalizedMessage}`;
+  }, []);
 
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
     toastCounterRef.current += 1;
@@ -97,7 +112,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'RUNTIME_ERROR') {
         const error = event.data.error;
-        const errorKey = `${error?.source || 'unknown'}|${error?.line || 0}|${error?.message || 'Unknown error'}`;
+        const errorKey = normalizeRuntimeErrorKey(error);
         const now = Date.now();
 
         // Guard against noisy duplicate postMessage events from iframe rerenders.
@@ -117,8 +132,14 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         }
         
         setTimeout(() => {
+          // Avoid hammering "Fix now" repeatedly for rapid-fire iframe errors.
+          if (Date.now() - lastAutoFixAtRef.current < 8000) {
+            return;
+          }
+
           if (!chatLogic.isGenerating && !chatLogic.isRepairing) {
             autoFixAttemptsRef.current.set(errorKey, attempts + 1);
+            lastAutoFixAtRef.current = Date.now();
             chatLogic.handleAutoFix();
           }
         }, 1000);
@@ -126,7 +147,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [addToast, chatLogic.isGenerating, chatLogic.isRepairing, chatLogic.handleAutoFix, chatLogic.setRuntimeError]);
+  }, [addToast, chatLogic.isGenerating, chatLogic.isRepairing, chatLogic.handleAutoFix, chatLogic.setRuntimeError, normalizeRuntimeErrorKey]);
 
   return {
     // Project State

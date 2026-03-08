@@ -264,9 +264,14 @@ export class Validator {
         errors.push(`🚨 CRITICAL ERROR in ${fileName}: Dynamic "require()" is not supported in Vite. You MUST use ESM "import" syntax. Example: import { something } from 'package';`);
       }
 
-      // 3. Detect process.env usage (should use import.meta.env in Vite)
+      // 3. Detect process.env usage (must use import.meta.env in Vite client code)
       if (content.includes('process.env.') && !content.includes('process.env.GEMINI_API_KEY') && !content.includes('process.env.API_KEY') && !fileName.includes('vite.config.ts') && !fileName.includes('server.ts')) {
-        errors.push(`🚨 WARNING in ${fileName}: You are using "process.env". In Vite, you should use "import.meta.env.VITE_VARIABLE_NAME" for client-side environment variables.`);
+        errors.push(`🚨 CRITICAL ERROR in ${fileName}: "process.env" is not allowed in Vite client code. Use "import.meta.env.VITE_VARIABLE_NAME" with null-safe fallback/checks to prevent runtime crashes.`);
+      }
+
+      // 4. Detect unhandled Supabase environment variables
+      if (content.includes('VITE_SUPABASE_URL') && !content.includes('if (!import.meta.env.VITE_SUPABASE_URL)') && !content.includes('import.meta.env.VITE_SUPABASE_URL ??') && !content.includes('import.meta.env.VITE_SUPABASE_URL ||')) {
+        errors.push(`🚨 CRITICAL ERROR in ${fileName}: You are accessing "VITE_SUPABASE_URL" without a safety check. ALWAYS check if it exists before using it to prevent "Cannot read properties of undefined" errors.`);
       }
     }
     return errors;

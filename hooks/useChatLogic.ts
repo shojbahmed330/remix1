@@ -120,6 +120,26 @@ export const useChatLogic = (
 
   const handleSendRef = useRef<any>(null);
 
+  const isAdminDashboardIntent = useCallback((text: string): boolean => {
+    const normalized = (text || '').toLowerCase();
+    const hasAdmin = /(admin\s*dashboard|admin\s*panel|dashboard\s*admin|create\s*admin|admin\s*panel|create\s*dashboard)/.test(normalized);
+    const hasCreateIntent = /(create|build|make|generate|add|banao|toiri|banate|create\s*koro|dashboard\s*koro)/.test(normalized);
+    return hasAdmin && hasCreateIntent;
+  }, []);
+
+  const shouldAllowSupabaseQuestion = useCallback((promptText: string, messagesSnapshot: ChatMessage[]): boolean => {
+    if (isAdminDashboardIntent(promptText)) return true;
+
+    // Also allow during follow-up turns if user previously asked to create admin dashboard.
+    for (let i = messagesSnapshot.length - 1; i >= 0; i--) {
+      const msg = messagesSnapshot[i];
+      if (msg.role !== 'user') continue;
+      if (isAdminDashboardIntent(msg.content || '')) return true;
+    }
+
+    return false;
+  }, [isAdminDashboardIntent]);
+
   const runUnitTests = useCallback(async () => {
     const testFiles = Object.keys(projectFilesRef.current).filter(path => path.startsWith('tests/'));
     if (testFiles.length === 0) return;
@@ -281,11 +301,7 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       const res = finalRes;
       if (res.thought) setLastThought(res.thought);
 
-      if (!isAuto) {
-        if (res.questions && res.questions.length > 0) {
-          setPhase(BuilderPhase.QUESTIONING);
-        }
-      }
+      const allowSupabaseQuestion = shouldAllowSupabaseQuestion(promptText, messagesSnapshot);
       
       let updatedFiles = { ...projectFilesRef.current };
       if (res.files && Object.keys(res.files).length > 0) {
@@ -314,7 +330,19 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
         setExecutionQueue(nextPlan.slice(1));
       }
 
-      const validQuestions = (res.questions || []).filter((q: any) => q && q.text && (q.type === 'supabase_credentials' || (q.options && q.options.length > 0)));
+      const validQuestions = (res.questions || []).filter((q: any) => {
+        if (!q || !q.text) return false;
+
+        if (q.type === 'supabase_credentials') {
+          return allowSupabaseQuestion;
+        }
+
+        return q.options && q.options.length > 0;
+      });
+
+      if (!isAuto && validQuestions.length > 0) {
+        setPhase(BuilderPhase.QUESTIONING);
+      }
 
       const finalAssistantMsg: ChatMessage = { 
         id: assistantId, role: 'assistant', content: res.answer, 
@@ -392,8 +420,12 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       ? `\nSPECIAL FIX HINT: The app is calling useAuth outside of its provider. Ensure the root tree is wrapped with <AuthProvider> and remove duplicate/nested router/provider setups that bypass context.`
       : '';
 
-    const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')")
-      ? `\nSPECIAL FIX HINT: This error usually happens when a React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (e.g., <MyComponent />). Check the file ${runtimeError.source} for any such calls and fix them.`
+    const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')") || runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'useref')")
+      ? `\nSPECIAL FIX HINT: This error usually happens when a React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (e.g., <MyComponent />). Check the file ${runtimeError.source} for any such calls and fix them. NEVER call components as functions.`
+      : '';
+
+    const supabaseHint = runtimeError.message?.toLowerCase().includes("cannot read properties of undefined (reading 'vite_supabase_url')")
+      ? `\nSPECIAL FIX HINT: The app is trying to access VITE_SUPABASE_URL but it is undefined. This happens because the user hasn't set up Supabase yet. You MUST add a safety check before using it: if (!import.meta.env.VITE_SUPABASE_URL) return; or similar. Also, explain to the user in your response that they need to set up Supabase in settings.`
       : '';
 
     const errorContext = `RUNTIME ERROR DETECTED:
@@ -401,7 +433,7 @@ Message: ${runtimeError.message}
 File: ${runtimeError.source}
 Line: ${runtimeError.line}
 
-INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}${useContextHint}`;
+INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}${useContextHint}${supabaseHint}`;
 
     try {
       await handleSend(errorContext, true);
