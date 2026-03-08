@@ -65,6 +65,15 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
           }, '*');
           return false;
         };
+
+        window.addEventListener('load', function() {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.parent.postMessage({ type: 'PREVIEW_RENDER_OK' }, '*');
+            });
+          });
+        });
+
         if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
       </script>
     `;

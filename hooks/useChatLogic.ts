@@ -88,6 +88,8 @@ export const useChatLogic = (
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null);
   
   const [runtimeError, setRuntimeError] = useState<{ message: string; line: number; source: string } | null>(null);
+  const runtimeErrorRef = useRef<{ message: string; line: number; source: string } | null>(null);
+  const lastPreviewRenderAtRef = useRef(0);
   const [isRepairing, setIsRepairing] = useState(false);
   const [repairSuccess, setRepairSuccess] = useState(false);
   
@@ -122,7 +124,7 @@ export const useChatLogic = (
 
   const isAdminDashboardIntent = useCallback((text: string): boolean => {
     const normalized = (text || '').toLowerCase();
-    const hasAdmin = /(admin\s*dashboard|admin\s*panel|dashboard\s*admin|create\s*admin|admin\s*panel|create\s*dashboard)/.test(normalized);
+    const hasAdmin = /(admin\s*dashboard|admin\s*panel|dashboard\s*admin|create\s*admin|admin\s*panel|create\s*dashboard|admin\s*create)/.test(normalized);
     const hasCreateIntent = /(create|build|make|generate|add|banao|toiri|banate|create\s*koro|dashboard\s*koro)/.test(normalized);
     return hasAdmin && hasCreateIntent;
   }, []);
@@ -409,6 +411,17 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
     handleSendRef.current = handleSend;
   }, [handleSend]);
 
+  useEffect(() => {
+    const onPreviewMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PREVIEW_RENDER_OK') {
+        lastPreviewRenderAtRef.current = Date.now();
+      }
+    };
+
+    window.addEventListener('message', onPreviewMessage);
+    return () => window.removeEventListener('message', onPreviewMessage);
+  }, []);
+
   const handleAutoFix = useCallback(async () => {
     if (!runtimeError) return;
     
@@ -420,26 +433,78 @@ INSTRUCTION: Analyze the test failures above. Fix the logic in the corresponding
       ? `\nSPECIAL FIX HINT: The app is calling useAuth outside of its provider. Ensure the root tree is wrapped with <AuthProvider> and remove duplicate/nested router/provider setups that bypass context.`
       : '';
 
-    const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')") || runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'useref')")
+    const useContextHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'usecontext')")
       ? `\nSPECIAL FIX HINT: This error usually happens when a React component is called as a function (e.g., {MyComponent()}) instead of using JSX syntax (e.g., <MyComponent />). Check the file ${runtimeError.source} for any such calls and fix them. NEVER call components as functions.`
+      : '';
+
+    const useRefHint = runtimeError.message?.toLowerCase().includes("cannot read properties of null (reading 'useref')")
+      ? `\nSPECIAL FIX HINT: This usually means React hooks are being invoked outside a valid component render path (often from calling a component like a function). Ensure all components are rendered with JSX and hooks stay at top-level of React components/custom hooks.`
       : '';
 
     const supabaseHint = runtimeError.message?.toLowerCase().includes("cannot read properties of undefined (reading 'vite_supabase_url')")
       ? `\nSPECIAL FIX HINT: The app is trying to access VITE_SUPABASE_URL but it is undefined. This happens because the user hasn't set up Supabase yet. You MUST add a safety check before using it: if (!import.meta.env.VITE_SUPABASE_URL) return; or similar. Also, explain to the user in your response that they need to set up Supabase in settings.`
       : '';
 
+    const getErrorKey = (err: { message: string; line: number; source: string } | null) => {
+      if (!err) return '';
+      const normalizedMessage = String(err.message || 'Unknown error')
+        .replace(/\(reading\s+'[^']+'\)/gi, '(reading <property>)')
+        .replace(/\b\d+\b/g, '<n>')
+        .trim();
+      return `${err.source || 'unknown'}|${normalizedMessage}`;
+    };
+
+    const initialErrorKey = getErrorKey(runtimeError);
+    const renderMarker = lastPreviewRenderAtRef.current;
+
+    const waitForStableRuntime = async (maxWindowMs: number = 3200, pollMs: number = 100): Promise<'stable' | 'runtime_error' | 'no_render'> => {
+      const start = Date.now();
+      let sawRender = false;
+
+      while (Date.now() - start < maxWindowMs) {
+        if (runtimeErrorRef.current) {
+          return 'runtime_error';
+        }
+
+        if (lastPreviewRenderAtRef.current > renderMarker) {
+          sawRender = true;
+          // Once render is observed, keep a short grace period for lazy/dynamic chunks.
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return runtimeErrorRef.current ? 'runtime_error' : 'stable';
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollMs));
+      }
+
+      return sawRender ? 'stable' : 'no_render';
+    };
+
     const errorContext = `RUNTIME ERROR DETECTED:
 Message: ${runtimeError.message}
 File: ${runtimeError.source}
 Line: ${runtimeError.line}
 
-INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}${useContextHint}${supabaseHint}`;
+INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.source} and provide a corrected version. Ensure the fix is robust.${authProviderHint}${useContextHint}${useRefHint}${supabaseHint}`;
 
     try {
-      await handleSend(errorContext, true);
-      setRepairSuccess(true);
+      // Clear stale error before attempting repair; if issue persists, iframe monitor will set it again.
       setRuntimeError(null);
-      addToast("Self-Healing Complete: Error resolved.", "success");
+      await handleSend(errorContext, true);
+
+      const stability = await waitForStableRuntime();
+      const latestError = runtimeErrorRef.current;
+      const latestErrorKey = getErrorKey(latestError);
+
+      if (stability === 'stable' && !latestErrorKey) {
+        setRepairSuccess(true);
+        addToast("Self-Healing Complete: Error resolved.", "success");
+      } else if (stability === 'no_render') {
+        addToast("Self-Healing Unverified: Preview render signal did not arrive. Please reload preview once.", "info");
+      } else if (latestErrorKey === initialErrorKey) {
+        addToast("Self-Healing Incomplete: Same runtime error is still present.", "error");
+      } else {
+        addToast("Self-Healing Partial: Previous error changed, but a new runtime error was detected.", "info");
+      }
       
       setTimeout(() => setRepairSuccess(false), 3000);
     } catch (e: any) {
@@ -448,6 +513,10 @@ INSTRUCTION: Fix this error immediately. Analyze the code in ${runtimeError.sour
       setIsRepairing(false);
     }
   }, [runtimeError, addToast, handleSend]);
+
+  useEffect(() => {
+    runtimeErrorRef.current = runtimeError;
+  }, [runtimeError]);
 
   return {
     messages, setMessages,
