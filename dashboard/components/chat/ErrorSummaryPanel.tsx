@@ -10,12 +10,12 @@ const ErrorSummaryPanel: React.FC<ErrorSummaryPanelProps> = ({ errors }) => {
   if (!errors || errors.length === 0) return null;
 
   return (
-    <div className="my-4 bg-red-500/5 border border-red-500/20 rounded-2xl p-3 md:p-4 animate-in fade-in slide-in-from-top-2 duration-500">
+    <div className="my-4 bg-red-500/5 border border-red-500/20 rounded-2xl p-3 md:p-4 animate-in fade-in slide-in-from-top-2 duration-500 w-full min-w-0">
       <div className="flex items-center gap-2 mb-2 md:mb-3 text-red-400">
         <AlertCircle size={14} />
         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">AI identified issues</span>
       </div>
-      <div className="space-y-1.5 md:space-y-2">
+      <div className="space-y-1.5 md:space-y-2 w-full min-w-0">
         {errors.map((err, i) => {
           let displayErr = err;
           if (err.includes('TS Syntax Error')) {
@@ -27,9 +27,9 @@ const ErrorSummaryPanel: React.FC<ErrorSummaryPanelProps> = ({ errors }) => {
           }
 
           return (
-            <div key={i} className="flex items-start gap-2 text-[10px] md:text-[11px] text-red-400/80 font-medium leading-tight">
+            <div key={i} className="flex items-start gap-2 text-[10px] md:text-[11px] text-red-400/80 font-medium leading-tight w-full min-w-0">
               <span className="mt-1 w-1 h-1 rounded-full bg-red-500/40 shrink-0" />
-              <span>{displayErr}</span>
+              <span className="break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{displayErr}</span>
             </div>
           );
         })}

@@ -44,7 +44,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isGenerating, curre
   return (
     <div 
       ref={scrollRef}
-      className="flex-1 p-4 md:p-6 overflow-y-auto space-y-10 pt-20 lg:pt-6 pb-10 md:pb-48 scroll-smooth custom-scrollbar relative"
+      className="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden space-y-10 pt-20 lg:pt-6 pb-10 md:pb-48 scroll-smooth custom-scrollbar relative w-full"
     >
       {/* Top Status Bar */}
       {isGenerating && (

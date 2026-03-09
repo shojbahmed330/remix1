@@ -55,11 +55,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message: m, index: idx, handl
 
   return (
     <div 
-      className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both w-full`}
+      className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both w-full min-w-0`}
       style={{ animationDelay: `${idx * 50}ms` }}
     >
-      <div className="flex flex-col items-start w-full max-w-full">
-        <div className="w-full">
+      <div className="flex flex-col items-start w-full max-w-full min-w-0">
+        <div className="w-full min-w-0">
           {m.role === 'assistant' && m.thought && (
             <ReasoningBlock thought={m.thought} />
           )}
@@ -70,11 +70,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message: m, index: idx, handl
 
           {(m.content || m.image || (m.plan && m.plan.length > 0) || (m.files && Object.keys(m.files).length > 0) || (m.isApproval && isLatest && !selectionMade) || (m.questions && m.questions.length > 0)) && (
             <div className={`
-              max-w-[95%] md:max-w-[92%] p-5 rounded-3xl text-[13px] leading-relaxed transition-all relative break-words overflow-hidden w-full
+              max-w-[95%] md:max-w-[92%] p-5 rounded-3xl text-[13px] leading-relaxed transition-all relative break-words overflow-hidden w-full min-w-0
               ${m.role === 'user' 
                 ? 'bg-pink-600 text-white rounded-tr-sm self-end shadow-lg ml-auto' 
                 : 'bg-white/5 border border-white/10 rounded-tl-sm self-start text-zinc-300'}
-            `}>
+            `} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
               {m.image && (
                 <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 shadow-xl">
                   <img src={m.image} className="w-full max-h-[300px] object-cover" alt="Uploaded" />
