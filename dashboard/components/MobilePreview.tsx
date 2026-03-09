@@ -83,7 +83,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
       </div>
 
       <div className={`w-full h-full lg:h-auto lg:flex-1 flex flex-col ${workspace === 'admin' ? 'lg:items-stretch' : 'lg:items-start'} justify-center p-0 pt-20 pb-20 lg:p-4`}>
-          <div className={`relative group/preview-container transition-all duration-700 hover:scale-[1.01] ${workspace === 'admin' ? 'w-full h-full' : ''}`}>
+          <div className={`relative group/preview-container transition-all duration-700 hover:scale-[1.01] w-full h-full`}>
              {/* Dynamic Glow Background */}
              <div className={`absolute -inset-4 blur-[40px] opacity-0 group-hover/preview-container:opacity-20 transition-opacity duration-700 rounded-[4rem] -z-10 ${workspace === 'admin' ? 'bg-indigo-500' : 'bg-pink-500'}`}></div>
              
