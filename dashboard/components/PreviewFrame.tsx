@@ -16,7 +16,7 @@ const PreviewFrame: React.FC<PreviewFrameProps> = ({ workspace, children, appNam
   return (
     <div className={`relative transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${
       isApp 
-        ? 'w-full lg:w-[320px] h-full lg:h-[640px] shrink-0' 
+        ? 'w-[320px] h-[640px] shrink-0 mx-auto' 
         : 'w-full h-full lg:h-[calc(100%-2rem)]'
     }`}>
       
@@ -26,13 +26,13 @@ const PreviewFrame: React.FC<PreviewFrameProps> = ({ workspace, children, appNam
       {/* THE ACTUAL FRAME - Responsive: Frameless on Mobile */}
       <div className={`w-full h-full bg-black shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] flex flex-col relative overflow-hidden transition-all duration-1000 ${
         isApp 
-          ? 'lg:rounded-[3.5rem] lg:border-[12px] lg:border-[#18181b] lg:ring-1 lg:ring-white/10' 
+          ? 'rounded-[3.5rem] border-[12px] border-[#18181b] ring-1 ring-white/10' 
           : 'lg:rounded-xl lg:border lg:border-white/10 lg:ring-1 lg:ring-white/5 lg:shadow-2xl'
       }`}>
         
         {/* TOP BAR / BEZEL (Desktop only) */}
         {isApp ? (
-          <div className="h-7 w-full hidden lg:flex items-center justify-center relative bg-[#18181b] shrink-0">
+          <div className="h-7 w-full flex items-center justify-center relative bg-[#18181b] shrink-0">
              <div className="w-20 h-4 bg-black/40 rounded-b-2xl shadow-sm flex items-center justify-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-zinc-800"></div>
                 <div className="w-6 h-1 rounded-full bg-zinc-800"></div>
@@ -67,7 +67,7 @@ const PreviewFrame: React.FC<PreviewFrameProps> = ({ workspace, children, appNam
 
         {/* BOTTOM NAV / BEZEL (Desktop only) */}
         {isApp && (
-          <div className="h-10 w-full hidden lg:flex items-center justify-center gap-14 bg-[#18181b] shrink-0">
+          <div className="h-10 w-full flex items-center justify-center gap-14 bg-[#18181b] shrink-0">
              <div className="w-1.5 h-1.5 rounded-full bg-black/40"></div>
              <div className="w-10 h-1 rounded-full bg-black/40"></div>
           </div>
