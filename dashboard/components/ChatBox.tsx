@@ -30,8 +30,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   waitingForApproval, phase, builderStatuses, projectFiles
 }) => {
   return (
-    <section className={`w-full lg:w-[500px] xl:w-[560px] border-r border-white/5 flex flex-col bg-[#09090b] h-full relative transition-all duration-700 ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
-      <div className="flex-1 flex flex-col overflow-hidden relative shadow-[30px_0_60px_rgba(0,0,0,0.4)] z-10">
+    <section className={`w-full max-w-full lg:w-[500px] xl:w-[560px] border-r border-white/5 flex flex-col bg-[#09090b] h-full relative transition-all duration-700 ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
+      <div className="flex-1 flex flex-col overflow-hidden relative shadow-[30px_0_60px_rgba(0,0,0,0.4)] z-10 w-full max-w-full">
         {messages.length > 0 ? (
           <MessageList 
             messages={messages} 
