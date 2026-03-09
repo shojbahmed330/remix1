@@ -129,13 +129,20 @@ export class GithubService {
     );
 
     const entryPath = files['app/index.html'] ? 'app/index.html' : 'index.html';
-    const bundledAppHtml = buildFinalHtml(appOnlyFiles, entryPath, appConfig);
+    const bundledAppHtml = buildFinalHtml(appOnlyFiles, entryPath, appConfig, true);
     
     const allFiles: Record<string, string> = { ...files };
     
-    // We no longer overwrite app/index.html with a bundled version.
-    // This ensures the GitHub repository remains modular as requested by the user.
-    // The GitHub Action will handle the environment injection.
+    // Overwrite the entry HTML files with the bundled versions so the app works on devices
+    allFiles[entryPath] = bundledAppHtml;
+    
+    const adminEntryPath = files['admin/index.html'] ? 'admin/index.html' : (files['admin.html'] ? 'admin.html' : null);
+    if (adminEntryPath) {
+        const adminOnlyFiles = Object.fromEntries(
+            Object.entries(files).filter(([path]) => path.startsWith('admin/') || path === 'admin.html' || !path.includes('/'))
+        );
+        allFiles[adminEntryPath] = buildFinalHtml(adminOnlyFiles, adminEntryPath, appConfig, true);
+    }
     
     allFiles['capacitor.config.json'] = JSON.stringify(capConfig, null, 2);
 

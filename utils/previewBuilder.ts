@@ -35,7 +35,7 @@ const rewriteRelativeImports = (code: string, filePath: string): string => {
     .replace(/(import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g, (_m, a, b, c) => `${a}${rewrite(b)}${c}`);
 };
 
-export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: string = 'index.html', projectConfig?: any) => {
+export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: string = 'index.html', projectConfig?: any, useDataUri: boolean = false) => {
   try {
     const supabaseConfig = projectConfig?.supabase_url ? `
       window.StudioDatabase = {
@@ -391,11 +391,16 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       "zustand/middleware": "https://esm.sh/zustand@5.0.2/middleware",
     };
 
-    // Add local files to import map as Object URLs
+    // Add local files to import map as Object URLs or Data URIs
     Object.entries(transpiledFiles).forEach(([path, code]) => {
       try {
-        const blob = new Blob([code], { type: 'text/javascript' });
-        const url = URL.createObjectURL(blob);
+        let url: string;
+        if (useDataUri) {
+          url = `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`;
+        } else {
+          const blob = new Blob([code], { type: 'text/javascript' });
+          url = URL.createObjectURL(blob);
+        }
         
         const cleanPath = path.replace(/\.(ts|tsx|js|jsx)$/, '');
         const aliasSet = new Set<string>();
@@ -505,7 +510,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       files.find(f => f.startsWith(workspacePrefix));
 
       if (entryFile) {
-        const importSpecifier = '/' + entryFile.replace(/\.(ts|tsx|js|jsx)$/, '');
+        const importSpecifier = entryFile.replace(/\.(ts|tsx|js|jsx)$/, '');
         const entrySourcePath = [
           `${entryFile}.tsx`,
           `${entryFile}.ts`,
@@ -546,10 +551,12 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       }
     }
 
+    const baseHref = useDataUri ? '' : '<base href="https://preview.local/">';
+
     const headInjection = `
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-      <base href="https://preview.local/">
+      ${baseHref}
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
